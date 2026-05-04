@@ -18,6 +18,16 @@ python3 -m venv .venv
 
 Abra: `http://127.0.0.1:8000/`
 
+## Fila no banco + worker serial (sem threading)
+
+Em outro terminal, rode o worker único:
+
+```bash
+.venv/bin/python manage.py worker_benchmark
+```
+
+Esse worker processa execuções com `status=pendente` em ordem de criação, uma por vez.
+
 ## Execução por linha de comando (demonstração)
 
 ```bash
