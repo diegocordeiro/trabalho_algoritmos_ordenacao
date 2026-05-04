@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+{% block title %}Configuração{% endblock %}
+{% block content %}
+
+<div class="card panel-card mb-4">
+  <div class="card-body p-4">
+    <h1 class="h4 mb-3">Informações da Equipe</h1>
+    <p class="mb-2"><strong>Integrantes:</strong> Arthur Fernando Elvas Bohn; Diego Cordeiro de Oliveira; Keoma de Sousa Coelho</p>
+    <p class="mb-2"><strong>Disciplina:</strong> Projeto e análise de algoritmo</p>
+    <p class="mb-2"><strong>Professor:</strong> Guilherme Amaral Avelino</p>
+    <p class="mb-0"><strong>Trabalho:</strong> Implementação e Comparação de Algoritmos de Ordenação</p>
+  </div>
+</div>
+
+<div class="card panel-card">
+  <div class="card-body p-4">
+    <form method="post">
+      {% csrf_token %}
+      <div class="row g-3 mb-3">
+        <div class="col-lg-8">
+          <label class="form-label fw-semibold">Nome da execução</label>
+          <input type="text" name="nome" value="{{ form.nome.value|default:'' }}" class="form-control form-control-lg" placeholder="Ex.: Execução oficial Parte I">
+        </div>
+        <div class="col-lg-4">
+          <label class="form-label fw-semibold">Repetições (mín. 3)</label>
+          <input type="number" min="3" name="repeticoes" value="{{ form.repeticoes.value|default:'3' }}" class="form-control form-control-lg">
+        </div>
+      </div>
+
+      <div class="row g-4">
+        <div class="col-lg-4">
+          <div class="p-3 border rounded-3 bg-white h-100">
+            <div class="section-title">Algoritmo</div>
+            {{ form.algoritmo }}
+          </div>
+        </div>
+        <div class="col-lg-4">
+          <div class="p-3 border rounded-3 bg-white h-100">
+            <div class="section-title">Condição</div>
+            {{ form.condicoes }}
+          </div>
+        </div>
+        <div class="col-lg-4">
+          <div class="p-3 border rounded-3 bg-white h-100">
+            <div class="section-title">Tamanho</div>
+            {{ form.tamanho }}
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-4">
+        <label class="form-label fw-semibold">Vetor personalizado (opcional)</label>
+        {{ form.vetor_personalizado }}
+        <div class="form-text">Se preenchido, este vetor será usado no lugar da geração automática.</div>
+      </div>
+
+      {% if form.errors %}
+      <div class="alert alert-danger mt-3 mb-0">
+        Verifique os campos obrigatórios e tente novamente.
+      </div>
+      {% endif %}
+
+      <div class="d-flex gap-2 mt-4">
+        <button type="submit" class="btn btn-primary btn-lg">Iniciar execução assíncrona</button>
+        <a href="/execucoes/" class="btn btn-outline-secondary btn-lg">Ir para execuções</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

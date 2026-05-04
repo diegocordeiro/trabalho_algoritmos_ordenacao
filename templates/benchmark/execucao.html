@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% block title %}Acompanhamento{% endblock %}
+{% block content %}
+<div class="card shadow-sm">
+  <div class="card-body">
+    <h1 class="h4">Execução #{{ execucao.id }}</h1>
+    <p class="mb-2"><strong>Status:</strong> <span id="status">{{ execucao.status }}</span></p>
+    <p id="progresso" class="alert alert-info mb-0">{{ execucao.progresso_texto }}</p>
+  </div>
+</div>
+<script>
+const statusEl = document.getElementById('status');
+const progressoEl = document.getElementById('progresso');
+const endpoint = "{% url 'benchmark:status_execucao' execucao.id %}";
+const poll = async () => {
+  const resp = await fetch(endpoint);
+  const data = await resp.json();
+  statusEl.textContent = data.status;
+  progressoEl.textContent = data.progresso_texto;
+  if (data.status === 'concluido') {
+    window.location.href = data.url_resultados;
+    return;
+  }
+  if (data.status === 'erro') {
+    progressoEl.className = 'alert alert-danger mb-0';
+    return;
+  }
+  setTimeout(poll, 1200);
+};
+setTimeout(poll, 1200);
+</script>
+{% endblock %}

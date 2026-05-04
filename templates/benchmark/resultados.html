@@ -1,0 +1,195 @@
+{% extends 'base.html' %}
+{% load humanize %}
+{% block title %}Resultados{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h4 mb-0">Resultados da Execução #{{ execucao.id }}</h1>
+  <div>
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'relatorios:exportar_csv' execucao.id %}">Exportar CSV</a>
+  </div>
+</div>
+
+<div class="card mb-4">
+  <div class="card-body">
+    <h2 class="h6">Médias por combinação</h2>
+    <div class="table-responsive">
+      <table class="table table-striped table-sm">
+        <thead><tr><th>Algoritmo</th><th>Condição</th><th>Tamanho</th><th>Média tempo (ms)</th><th>Média comparações</th></tr></thead>
+        <tbody>
+          {% for m in medias %}
+          <tr>
+            <td>{{ m.algoritmo }}</td>
+            <td>{{ m.condicao }}</td>
+            <td>{{ m.tamanho|intcomma }}</td>
+            <td>{{ m.media_tempo_ms|floatformat:4|intcomma }}</td>
+            <td>{{ m.media_comparacoes|intcomma  }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4 mb-4">
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-body">
+        <h2 class="h6">Tamanho x Tempo</h2>
+        <p class="text-muted small mb-2" id="notaGraficoTempo"></p>
+        <canvas id="graficoTempo"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-body">
+        <h2 class="h6">Tamanho x Comparações</h2>
+        <p class="text-muted small mb-2" id="notaGraficoComparacoes"></p>
+        <canvas id="graficoComparacoes"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <h2 class="h6">Execuções detalhadas</h2>
+    <div class="table-responsive" style="max-height: 380px; overflow:auto;">
+      <table class="table table-bordered table-sm">
+        <thead>
+          <tr>
+            <th>Algoritmo</th>
+            <th>Condição</th>
+            <th>Tamanho</th>
+            <th>Rodada</th>
+            <th>Tempo (ms)</th>
+            <th>Comparações</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in resultados %}
+          <tr>
+            <td>{{ r.algoritmo }}</td>
+            <td>{{ r.condicao }}</td>
+            <td>{{ r.tamanho|intcomma }}</td>
+            <td>{{ r.rodada|intcomma }}</td>
+            <td>{{ r.tempo_ms|floatformat:4|intcomma }}</td>
+            <td>{{ r.comparacoes|intcomma }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{{ dados_grafico_json|json_script:"dados-graficos" }}
+<script>
+const dados = JSON.parse(document.getElementById('dados-graficos').textContent);
+const labels = [...new Set(Object.values(dados).flatMap(d => d.tamanhos))].sort((a,b)=>a-b);
+const palette = ['#0d6efd','#198754','#dc3545','#fd7e14','#6f42c1','#20c997','#6610f2','#6c757d','#d63384'];
+const seriesTempo = [];
+const seriesComparacoes = [];
+const tipoGrafico = labels.length <= 1 ? 'bar' : 'line';
+const modoUnicoPonto = labels.length <= 1;
+const notaTempo = document.getElementById('notaGraficoTempo');
+const notaComparacoes = document.getElementById('notaGraficoComparacoes');
+let idx = 0;
+for (const [nome, serie] of Object.entries(dados)) {
+  const mapaTempo = new Map(serie.tamanhos.map((t, i) => [t, serie.tempos[i]]));
+  const mapaComparacoes = new Map(serie.tamanhos.map((t, i) => [t, serie.comparacoes[i]]));
+  const cor = palette[idx % palette.length];
+  seriesTempo.push({
+    label: nome,
+    data: labels.map(l => mapaTempo.get(l) ?? null),
+    borderColor: cor,
+    backgroundColor: cor,
+    pointRadius: modoUnicoPonto ? 7 : 5,
+    pointHoverRadius: modoUnicoPonto ? 9 : 7,
+    borderWidth: 3,
+    tension: 0.2
+  });
+  seriesComparacoes.push({
+    label: nome,
+    data: labels.map(l => mapaComparacoes.get(l) ?? null),
+    borderColor: cor,
+    backgroundColor: cor,
+    pointRadius: modoUnicoPonto ? 7 : 5,
+    pointHoverRadius: modoUnicoPonto ? 9 : 7,
+    borderWidth: 3,
+    tension: 0.2
+  });
+  idx += 1;
+}
+
+if (modoUnicoPonto) {
+  notaTempo.textContent = 'Exibindo barra por haver apenas um tamanho de entrada nesta execução.';
+  notaComparacoes.textContent = 'Exibindo barra por haver apenas um tamanho de entrada nesta execução.';
+} else {
+  notaTempo.textContent = 'Linha temporal por tamanho para facilitar comparação de evolução.';
+  notaComparacoes.textContent = 'Linha temporal por tamanho para facilitar comparação de evolução.';
+}
+
+const opcoesBase = {
+  responsive: true,
+  maintainAspectRatio: true,
+  scales: {
+    x: {
+      title: { display: true, text: 'Tamanho da entrada' },
+      grid: { color: 'rgba(0, 0, 0, 0.06)' }
+    },
+    y: {
+      beginAtZero: true,
+      grid: { color: 'rgba(0, 0, 0, 0.06)' }
+    }
+  },
+  plugins: {
+    legend: { position: 'bottom' },
+    tooltip: {
+      callbacks: {
+        label: (ctx) => `${ctx.dataset.label}: ${Number(ctx.parsed.y).toLocaleString('pt-BR')}`
+      }
+    }
+  }
+};
+
+new Chart(document.getElementById('graficoTempo'), {
+  type: tipoGrafico,
+  data: {labels, datasets: seriesTempo},
+  options: {
+    ...opcoesBase,
+    plugins: {
+      ...opcoesBase.plugins,
+      tooltip: {
+        callbacks: {
+          label: (ctx) => `${ctx.dataset.label}: ${Number(ctx.parsed.y).toLocaleString('pt-BR')} ms`
+        }
+      }
+    },
+    scales: {
+      ...opcoesBase.scales,
+      y: {
+        ...opcoesBase.scales.y,
+        title: { display: true, text: 'Tempo médio (ms)' }
+      }
+    }
+  }
+});
+
+new Chart(document.getElementById('graficoComparacoes'), {
+  type: tipoGrafico,
+  data: {labels, datasets: seriesComparacoes},
+  options: {
+    ...opcoesBase,
+    scales: {
+      ...opcoesBase.scales,
+      y: {
+        ...opcoesBase.scales.y,
+        title: { display: true, text: 'Comparações médias' }
+      }
+    }
+  }
+});
+</script>
+{% endblock %}

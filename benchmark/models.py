@@ -1,0 +1,41 @@
+from django.db import models
+
+
+class ExecucaoBenchmark(models.Model):
+    STATUS_CHOICES = [
+        ('pendente', 'Pendente'),
+        ('executando', 'Executando'),
+        ('concluido', 'Concluido'),
+        ('erro', 'Erro'),
+    ]
+
+    nome = models.CharField(max_length=120, default='Execucao')
+    algoritmos = models.JSONField(default=list)
+    condicoes = models.JSONField(default=list)
+    tamanhos = models.JSONField(default=list)
+    repeticoes = models.PositiveIntegerField(default=3)
+    vetor_personalizado = models.TextField(blank=True, default='')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pendente')
+    progresso_texto = models.TextField(blank=True, default='Aguardando inicio...')
+    criado_em = models.DateTimeField(auto_now_add=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f'{self.nome} ({self.status})'
+
+
+class ResultadoExecucao(models.Model):
+    execucao = models.ForeignKey(ExecucaoBenchmark, on_delete=models.CASCADE, related_name='resultados')
+    algoritmo = models.CharField(max_length=30)
+    condicao = models.CharField(max_length=30)
+    tamanho = models.PositiveIntegerField()
+    rodada = models.PositiveIntegerField()
+    tempo_ms = models.FloatField()
+    comparacoes = models.PositiveBigIntegerField()
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['algoritmo', 'condicao', 'tamanho', 'rodada']
+
+    def __str__(self):
+        return f'{self.algoritmo} {self.condicao} n={self.tamanho} r={self.rodada}'
