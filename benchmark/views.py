@@ -2,6 +2,7 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_POST
+from django.db.models import Avg
 
 from benchmark.forms import ConfiguracaoBenchmarkForm
 from benchmark.models import ExecucaoBenchmark, ResultadoExecucao
@@ -66,3 +67,21 @@ def resultados_execucao(request, execucao_id):
         'dados_grafico_json': dados_grafico(execucao),
     }
     return render(request, 'benchmark/resultados.html', contexto)
+
+
+def comparar_algoritmos(request):
+    resultados = ResultadoExecucao.objects.all()
+
+    medias = (
+        resultados
+        .values('algoritmo', 'condicao', 'tamanho')
+        .annotate(
+            media_tempo_ms=Avg('tempo_ms'),
+            media_comparacoes=Avg('comparacoes')
+        )
+        .order_by('algoritmo', 'condicao', 'tamanho')
+    )
+
+    return render(request, 'benchmark/comparar_algoritmos.html', {
+        'medias_json': list(medias)
+    })

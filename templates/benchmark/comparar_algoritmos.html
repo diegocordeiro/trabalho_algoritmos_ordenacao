@@ -1,0 +1,220 @@
+{% extends 'base.html' %}
+
+{% block title %}Comparação de Algoritmos{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h4 mb-0">Comparação de Algoritmos (Entradas Grandes)</h1>
+  <div>
+    <a href="/execucoes/" class="btn btn-warning btn-sm">Ir para execuções</a>
+  </div>
+</div>
+
+<div class="card mb-4">
+  <div class="card-body">
+    <p class="text-muted small">
+      Comparação direta entre algoritmos considerando tempo de execução e quantidade de comparações.
+    </p>
+
+    <!-- FILTROS -->
+    <div class="row g-3 mb-3">
+      <div class="col-md-4">
+        <label class="form-label">Tamanho mínimo</label>
+        <input id="filtroTamanhoMinimo" type="number" class="form-control" value="30000" min="1">
+      </div>
+
+      <div class="col-md-8">
+        <label class="form-label">Condição</label>
+        <select id="filtroCondicao" class="form-select"></select>
+      </div>
+    </div>
+
+    <div class="d-flex gap-2 mb-3">
+      <button id="btnAtualizarComparacao" class="btn btn-outline-primary btn-sm">
+        Atualizar comparação
+      </button>
+      <span id="resumoComparacao" class="small text-muted align-self-center"></span>
+    </div>
+
+    <!-- GRÁFICO -->
+    <div class="card">
+      <div class="card-body">
+        <h3 class="h6">Tempo x Comparações</h3>
+        <canvas id="graficoComparacaoUnificado"></canvas>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+{{ medias_json|json_script:"dados-medias" }}
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+const mediasBase = JSON.parse(document.getElementById('dados-medias').textContent);
+
+const filtroCondicaoEl = document.getElementById('filtroCondicao');
+const filtroTamanhoMinimoEl = document.getElementById('filtroTamanhoMinimo');
+const resumoComparacaoEl = document.getElementById('resumoComparacao');
+const btnAtualizarComparacaoEl = document.getElementById('btnAtualizarComparacao');
+
+let graficoComparacao = null;
+
+/* =========================
+   UTILITÁRIOS
+========================= */
+function media(array) {
+  if (!array.length) return null;
+  return array.reduce((acc, v) => acc + v, 0) / array.length;
+}
+
+function escurecer(hex, fator = 0.65) {
+  const r = Math.floor(parseInt(hex.substr(1,2),16) * fator);
+  const g = Math.floor(parseInt(hex.substr(3,2),16) * fator);
+  const b = Math.floor(parseInt(hex.substr(5,2),16) * fator);
+  return `rgb(${r},${g},${b})`;
+}
+
+/* =========================
+   FILTRO CONDIÇÃO
+========================= */
+const condicoesDisponiveis = [...new Set(mediasBase.map(i => i.condicao))].sort();
+
+filtroCondicaoEl.innerHTML =
+  `<option value="__todas__">Todas as condições</option>` +
+  condicoesDisponiveis.map(c => `<option value="${c}">${c}</option>`).join('');
+
+/* =========================
+   GRÁFICO
+========================= */
+function montarComparacaoGrandes() {
+  const tamanhoMinimo = Number(filtroTamanhoMinimoEl.value || 1);
+  const condicao = filtroCondicaoEl.value;
+
+  const filtrados = mediasBase.filter(item =>
+    item.tamanho >= tamanhoMinimo &&
+    (condicao === '__todas__' || item.condicao === condicao)
+  );
+
+  const tamanhos = [...new Set(filtrados.map(i => i.tamanho))]
+    .sort((a, b) => a - b);
+
+  const mapaSeries = new Map();
+
+  for (const item of filtrados) {
+    const chave = item.algoritmo;
+
+    if (!mapaSeries.has(chave)) mapaSeries.set(chave, {});
+
+    if (!mapaSeries.get(chave)[item.tamanho]) {
+      mapaSeries.get(chave)[item.tamanho] = {
+        tempos: [],
+        comparacoes: []
+      };
+    }
+
+    mapaSeries.get(chave)[item.tamanho].tempos.push(Number(item.media_tempo_ms));
+    mapaSeries.get(chave)[item.tamanho].comparacoes.push(Number(item.media_comparacoes));
+  }
+
+  const coresBase = [
+    '#1f77b4','#d62728','#2ca02c','#ff7f0e',
+    '#9467bd','#17becf','#8c564b','#e377c2','#7f7f7f'
+  ];
+
+  let i = 0;
+  const datasets = [];
+
+  for (const [algoritmo, porTamanho] of mapaSeries.entries()) {
+    const cor = coresBase[i % coresBase.length];
+    const corEscura = escurecer(cor);
+
+    datasets.push({
+      label: `${algoritmo} (tempo)`,
+      data: tamanhos.map(t => media(porTamanho[t]?.tempos || [])),
+      borderColor: cor,
+      yAxisID: 'yTempo',
+      tension: 0.25,
+      borderWidth: 3,
+      pointRadius: 4,
+      pointHoverRadius: 7,
+    });
+
+    datasets.push({
+      label: `${algoritmo} (comparações)`,
+      data: tamanhos.map(t => media(porTamanho[t]?.comparacoes || [])),
+      borderColor: corEscura,
+      borderDash: [6, 4],
+      yAxisID: 'yComparacoes',
+      tension: 0.25,
+      borderWidth: 2,
+      pointRadius: 3,
+      pointHoverRadius: 6,
+    });
+
+    i++;
+  }
+
+  if (graficoComparacao) graficoComparacao.destroy();
+
+  graficoComparacao = new Chart(
+    document.getElementById('graficoComparacaoUnificado'),
+    {
+      type: 'line',
+      data: {
+        labels: tamanhos,
+        datasets: datasets
+      },
+      options: {
+        responsive: true,
+        interaction: {
+          mode: 'index',
+          intersect: false
+        },
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: {
+              usePointStyle: true,
+              padding: 15,
+              font: { size: 12, weight: 'bold' }
+            }
+          },
+          tooltip: {
+            callbacks: {
+              label: function(ctx) {
+                return `${ctx.dataset.label}: ${Number(ctx.parsed.y).toLocaleString('pt-BR')}`;
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            title: { display: true, text: 'Tamanho da entrada' }
+          },
+          yTempo: {
+            type: 'linear',
+            position: 'left',
+            title: { display: true, text: 'Tempo (ms)' }
+          },
+          yComparacoes: {
+            type: 'linear',
+            position: 'right',
+            title: { display: true, text: 'Comparações' },
+            grid: { drawOnChartArea: false }
+          }
+        }
+      }
+    }
+  );
+
+  resumoComparacaoEl.textContent =
+    `${filtrados.length} pontos | ${mapaSeries.size} algoritmos`;
+}
+
+btnAtualizarComparacaoEl.addEventListener('click', montarComparacaoGrandes);
+montarComparacaoGrandes();
+</script>
+
+{% endblock %}

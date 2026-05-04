@@ -93,7 +93,9 @@
     </div>
   </div>
 </div>
-
+<div class="d-flex justify-content-end mt-3">
+  <a class="btn btn-outline-primary" href="{% url 'benchmark:comparacao_grandes_execucao' execucao.id %}">Abrir comparação para entradas grandes</a>
+</div>
 {{ dados_grafico_json|json_script:"dados-graficos" }}
 <script>
 const dados = JSON.parse(document.getElementById('dados-graficos').textContent);

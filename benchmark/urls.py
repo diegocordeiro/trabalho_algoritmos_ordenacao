@@ -11,4 +11,5 @@ urlpatterns = [
     path('execucao/<int:execucao_id>/', views.acompanhar_execucao, name='acompanhar_execucao'),
     path('execucao/<int:execucao_id>/status/', views.status_execucao, name='status_execucao'),
     path('execucao/<int:execucao_id>/resultados/', views.resultados_execucao, name='resultados_execucao'),
+    path('comparar/', views.comparar_algoritmos, name='comparar_algoritmos'),
 ]
