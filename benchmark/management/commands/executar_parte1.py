@@ -8,7 +8,7 @@ class Command(BaseCommand):
     help = 'Executa benchmark da Parte I com os parametros informados.'
 
     def add_arguments(self, parser):
-        parser.add_argument('--algoritmos', default='bolha,insercao,intercalacao,heap,rapido')
+        parser.add_argument('--algoritmos', default='bublesort,insertionsort,mergesort,heap,quicksort')
         parser.add_argument('--condicoes', default='crescente,decrescente,aleatorio')
         parser.add_argument('--tamanhos', default='500')
         parser.add_argument('--repeticoes', type=int, default=3)

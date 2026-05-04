@@ -21,7 +21,7 @@ Abra: `http://127.0.0.1:8000/`
 ## Execução por linha de comando (demonstração)
 
 ```bash
-.venv/bin/python manage.py executar_parte1  --algoritmos intercalacao --tamanhos 200000 --repeticoes 3 --nome Teste
+.venv/bin/python manage.py executar_parte1  --algoritmos mergesort --tamanhos 200000 --repeticoes 3 --nome Teste
 ```
 
 ## Módulos

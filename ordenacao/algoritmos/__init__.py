@@ -5,9 +5,9 @@ from .mergesort import ordenar_mergesort
 from .quicksort import ordenar_quicksort
 
 ALGORITMOS = {
-    'bolha': ordenar_bublesort,
-    'insercao': ordenar_insertionsort,
-    'intercalacao': ordenar_mergesort,
+    'bublesort': ordenar_bublesort,
+    'insertionsort': ordenar_insertionsort,
+    'mergesort': ordenar_mergesort,
     'heap': ordenar_heap,
-    'rapido': ordenar_quicksort,
+    'quicksort': ordenar_quicksort,
 }

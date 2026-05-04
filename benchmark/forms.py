@@ -1,11 +1,11 @@
 from django import forms
 
 ALGORITMOS_DISPONIVEIS = [
-    ('bolha', 'Bublesort'),
-    ('insercao', 'Insertionsort'),
-    ('intercalacao', 'MergeSort'),
+    ('bublesort', 'Bublesort'),
+    ('insertionsort', 'Insertionsort'),
+    ('mergesort', 'MergeSort'),
     ('heap', 'HeapSort'),
-    ('rapido', 'QuickSort'),
+    ('quicksort', 'QuickSort'),
 ]
 
 CONDICOES_DISPONIVEIS = [
