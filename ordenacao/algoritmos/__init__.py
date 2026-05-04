@@ -1,13 +1,13 @@
-from .bolha import ordenar_bolha
+from .bublesort import ordenar_bublesort
 from .heap import ordenar_heap
-from .insercao import ordenar_insercao
-from .intercalacao import ordenar_intercalacao
-from .rapido import ordenar_rapido
+from .insertionsort import ordenar_insertionsort
+from .mergesort import ordenar_mergesort
+from .quicksort import ordenar_quicksort
 
 ALGORITMOS = {
-    'bolha': ordenar_bolha,
-    'insercao': ordenar_insercao,
-    'intercalacao': ordenar_intercalacao,
+    'bolha': ordenar_bublesort,
+    'insercao': ordenar_insertionsort,
+    'intercalacao': ordenar_mergesort,
     'heap': ordenar_heap,
-    'rapido': ordenar_rapido,
+    'rapido': ordenar_quicksort,
 }

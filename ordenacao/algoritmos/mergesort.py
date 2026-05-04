@@ -1,4 +1,4 @@
-def ordenar_intercalacao(vetor):
+def ordenar_mergesort(vetor):
     # Cria uma copia do vetor para evitar alteracao da entrada original.
     arr = list(vetor)
     # Inicializa o contador de comparacoes em zero.

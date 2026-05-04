@@ -1,10 +1,10 @@
-def ordenar_rapido(vetor):
+def ordenar_quicksort(vetor):
     # Cria uma copia do vetor para nao alterar a entrada fornecida.
     arr = list(vetor)
     # Inicializa o contador de comparacoes com zero.
     comparacoes = 0
 
-    # Define funcao PARTITION conforme esquema de Cormen (Lomuto).
+    # Define funcao PARTITION.
     def particionar(p, r):
         # Permite escrita no contador do escopo externo.
         nonlocal comparacoes

@@ -1,4 +1,4 @@
-def ordenar_insercao(vetor):
+def ordenar_insertionsort(vetor):
     # Cria uma copia do vetor para preservar os dados originais.
     arr = list(vetor)
     # Inicializa o contador de comparacoes com zero.

@@ -1,4 +1,4 @@
-def ordenar_bolha(vetor):
+def ordenar_bublesort(vetor):
     # Cria uma copia do vetor para nao modificar a entrada original.
     arr = list(vetor)
     # Inicializa o contador de comparacoes com zero.

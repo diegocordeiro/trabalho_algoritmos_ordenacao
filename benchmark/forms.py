@@ -1,9 +1,9 @@
 from django import forms
 
 ALGORITMOS_DISPONIVEIS = [
-    ('bolha', 'Bolha'),
-    ('insercao', 'Insercao'),
-    ('intercalacao', 'Intercalacao (MergeSort)'),
+    ('bolha', 'Bublesort'),
+    ('insercao', 'Insertionsort'),
+    ('intercalacao', 'MergeSort'),
     ('heap', 'HeapSort'),
     ('rapido', 'QuickSort'),
 ]
