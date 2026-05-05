@@ -70,7 +70,7 @@ def resultados_execucao(request, execucao_id):
 
 
 def comparar_algoritmos(request):
-    resultados = ResultadoExecucao.objects.all()
+    resultados = ResultadoExecucao.objects.all().order_by('algoritmo', 'condicao', 'tamanho')
 
     medias = (
         resultados
