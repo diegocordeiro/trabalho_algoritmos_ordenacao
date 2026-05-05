@@ -18,7 +18,7 @@ TAMANHOS_OBRIGATORIOS = [100, 500, 1000, 5000, 30000, 50000, 100000, 150000, 200
 
 
 class ConfiguracaoBenchmarkForm(forms.Form):
-    nome = forms.CharField(max_length=120, required=False, initial='Execucao Parte I')
+    nome = forms.CharField(max_length=120, required=False)
     algoritmo = forms.ChoiceField(
         choices=ALGORITMOS_DISPONIVEIS,
         initial=ALGORITMOS_DISPONIVEIS[0][0],

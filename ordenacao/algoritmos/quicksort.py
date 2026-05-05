@@ -1,3 +1,5 @@
+import random
+
 def ordenar_quicksort(vetor):
     # Cria uma copia do vetor para nao alterar a entrada fornecida.
     arr = list(vetor)
@@ -8,7 +10,9 @@ def ordenar_quicksort(vetor):
     def particionar(p, r):
         # Permite escrita no contador do escopo externo.
         nonlocal comparacoes
-        # Define o pivo como o ultimo elemento do segmento.
+        # Escolhe pivô aleatório e troca com o final
+        pivot_index = random.randint(p, r)
+        arr[pivot_index], arr[r] = arr[r], arr[pivot_index]
         pivo = arr[r]
         # Inicializa i para delimitar a regiao de elementos menores ou iguais ao pivo.
         i = p - 1

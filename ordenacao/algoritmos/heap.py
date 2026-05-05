@@ -6,7 +6,7 @@ def ordenar_heap(vetor):
     # Define o tamanho inicial do heap como o tamanho do vetor.
     tamanho_heap = len(arr)
 
-    # Define funcao MAX-HEAPIFY seguindo a logica de Cormen.
+    # Define funcao MAX-HEAPIFY corrige a propriedade de heap.
     def max_heapify(i):
         # Permite alterar variaveis do escopo externo.
         nonlocal comparacoes, tamanho_heap
@@ -40,6 +40,7 @@ def ordenar_heap(vetor):
             max_heapify(maior)
 
     # Constrói o max-heap a partir do vetor nao ordenado.
+    # divide o tamanho do vetor por 2 para obter o indice do ultimo nó interno (nós que tem filhos).
     for i in range((len(arr) // 2) - 1, -1, -1):
         # Aplica heapify em cada no interno.
         max_heapify(i)
