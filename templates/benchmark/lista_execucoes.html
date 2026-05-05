@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% block title %}Execuções{% endblock %}
+
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
   <div>
@@ -8,10 +9,47 @@
   <a href="/" class="btn btn-primary">Nova execução</a>
 </div>
 
+<div class="card panel-card mb-3">
+  <div class="card-body">
+    <div class="row g-3 align-items-end">
+      <div class="col-md-4">
+        <label for="filtro-status" class="form-label">Filtrar por status</label>
+        <select id="filtro-status" class="form-select">
+          <option value="">Todos</option>
+          <option value="concluido">Concluído</option>
+          <option value="erro">Erro</option>
+          <option value="executando">Executando</option>
+          <option value="pendente">Pendente</option>
+        </select>
+      </div>
+
+      <div class="col-md-4">
+        <label for="filtro-algoritmo" class="form-label">Filtrar por algoritmo</label>
+        <input
+          type="text"
+          id="filtro-algoritmo"
+          class="form-control"
+          placeholder="Ex.: quicksort"
+        >
+      </div>
+
+      <div class="col-md-4">
+        <label for="filtro-tamanho" class="form-label">Filtrar por tamanho</label>
+        <input
+          type="text"
+          id="filtro-tamanho"
+          class="form-control"
+          placeholder="Ex.: 1000"
+        >
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="card panel-card">
   <div class="card-body p-0">
     <div class="table-responsive">
-      <table class="table table-hover mb-0 align-middle">
+      <table class="table table-hover mb-0 align-middle" id="tabela-execucoes">
         <thead class="table-light">
           <tr>
             <th>ID</th>
@@ -26,7 +64,11 @@
         </thead>
         <tbody>
           {% for e in execucoes %}
-          <tr>
+          <tr
+            data-status="{{ e.status|lower }}"
+            data-algoritmos="{{ e.algoritmos|join:', '|lower }}"
+            data-tamanhos="{{ e.tamanhos|join:', '|lower }}"
+          >
             <td>#{{ e.id }}</td>
             <td>{{ e.nome }}</td>
             <td>
@@ -59,13 +101,66 @@
             </td>
           </tr>
           {% empty %}
-          <tr>
+          <tr id="linha-vazia">
             <td colspan="8" class="text-center py-4 text-muted">Nenhuma execução cadastrada até o momento.</td>
           </tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
+
+    <div id="sem-resultados" class="text-center py-4 text-muted d-none">
+      Nenhuma execução encontrada com os filtros aplicados.
+    </div>
   </div>
 </div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const filtroStatus = document.getElementById('filtro-status');
+    const filtroAlgoritmo = document.getElementById('filtro-algoritmo');
+    const filtroTamanho = document.getElementById('filtro-tamanho');
+    const tabela = document.getElementById('tabela-execucoes');
+    const linhas = tabela.querySelectorAll('tbody tr');
+    const semResultados = document.getElementById('sem-resultados');
+    const linhaVazia = document.getElementById('linha-vazia');
+
+    function aplicarFiltros() {
+      const statusSelecionado = filtroStatus.value.trim().toLowerCase();
+      const algoritmoDigitado = filtroAlgoritmo.value.trim().toLowerCase();
+      const tamanhoDigitado = filtroTamanho.value.trim().toLowerCase();
+
+      let algumaLinhaVisivel = false;
+
+      linhas.forEach((linha) => {
+        if (linha.id === 'linha-vazia') return;
+
+        const status = (linha.dataset.status || '').toLowerCase();
+        const algoritmos = (linha.dataset.algoritmos || '').toLowerCase();
+        const tamanhos = (linha.dataset.tamanhos || '').toLowerCase();
+
+        const bateStatus = !statusSelecionado || status === statusSelecionado;
+        const bateAlgoritmo = !algoritmoDigitado || algoritmos.includes(algoritmoDigitado);
+        const bateTamanho = !tamanhoDigitado || tamanhos.includes(tamanhoDigitado);
+
+        const visivel = bateStatus && bateAlgoritmo && bateTamanho;
+        linha.style.display = visivel ? '' : 'none';
+
+        if (visivel) algumaLinhaVisivel = true;
+      });
+
+      if (linhaVazia) {
+        linhaVazia.style.display = 'none';
+      }
+
+      semResultados.classList.toggle('d-none', algumaLinhaVisivel);
+    }
+
+    filtroStatus.addEventListener('change', aplicarFiltros);
+    filtroAlgoritmo.addEventListener('input', aplicarFiltros);
+    filtroTamanho.addEventListener('input', aplicarFiltros);
+
+    aplicarFiltros();
+  });
+</script>
 {% endblock %}
