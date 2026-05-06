@@ -6,11 +6,19 @@
   <div>
     <h1 class="h4 mb-1">Histórico de Execuções</h1>
   </div>
-  <div>
+  <div class="d-flex gap-2">
     <a href="/" class="btn btn-primary btn-sm">Nova execução</a>
     <a href="/comparar/" class="btn btn-secondary btn-sm">Comparar algoritmos</a>
+    <button type="button" class="btn btn-success btn-sm" id="btn-exportar-csv">
+      Exportar CSV selecionados
+    </button>
   </div>
 </div>
+
+<form id="form-exportar-csv" method="post" action="{% url 'relatorios:exportar_csv_selecionadas' %}" class="d-none">
+  {% csrf_token %}
+  <div id="inputs-execucoes"></div>
+</form>
 
 <div class="card panel-card mb-3">
   <div class="card-body">
@@ -55,6 +63,9 @@
       <table class="table table-hover mb-0 align-middle" id="tabela-execucoes">
         <thead class="table-light">
           <tr>
+            <th style="width: 40px;">
+              <input type="checkbox" id="selecionar-todos" class="form-check-input">
+            </th>
             <th>ID</th>
             <th>Nome</th>
             <th>Status</th>
@@ -72,6 +83,13 @@
             data-algoritmos="{{ e.algoritmos|join:', '|lower }}"
             data-tamanhos="{{ e.tamanhos|join:', '|lower }}"
           >
+            <td>
+              <input
+                type="checkbox"
+                class="form-check-input checkbox-execucao"
+                value="{{ e.id }}"
+              >
+            </td>
             <td>#{{ e.id }}</td>
             <td>{{ e.nome }}</td>
             <td>
@@ -105,7 +123,7 @@
           </tr>
           {% empty %}
           <tr id="linha-vazia">
-            <td colspan="8" class="text-center py-4 text-muted">Nenhuma execução cadastrada até o momento.</td>
+            <td colspan="9" class="text-center py-4 text-muted">Nenhuma execução cadastrada até o momento.</td>
           </tr>
           {% endfor %}
         </tbody>
@@ -127,6 +145,12 @@
     const linhas = tabela.querySelectorAll('tbody tr');
     const semResultados = document.getElementById('sem-resultados');
     const linhaVazia = document.getElementById('linha-vazia');
+
+    const selecionarTodos = document.getElementById('selecionar-todos');
+    const checkboxes = document.querySelectorAll('.checkbox-execucao');
+    const btnExportar = document.getElementById('btn-exportar-csv');
+    const formExportar = document.getElementById('form-exportar-csv');
+    const inputsExecucoes = document.getElementById('inputs-execucoes');
 
     function aplicarFiltros() {
       const statusSelecionado = filtroStatus.value.trim().toLowerCase();
@@ -159,11 +183,50 @@
       semResultados.classList.toggle('d-none', algumaLinhaVisivel);
     }
 
+    function atualizarSelecionarTodos() {
+      const checados = Array.from(checkboxes).filter(cb => cb.checked).length;
+      selecionarTodos.checked = checados > 0 && checados === checkboxes.length;
+      selecionarTodos.indeterminate = checados > 0 && checados < checkboxes.length;
+    }
+
+    selecionarTodos?.addEventListener('change', function () {
+      checkboxes.forEach(cb => {
+        cb.checked = selecionarTodos.checked;
+      });
+    });
+
+    checkboxes.forEach(cb => {
+      cb.addEventListener('change', atualizarSelecionarTodos);
+    });
+
+    btnExportar.addEventListener('click', function () {
+      const selecionados = Array.from(document.querySelectorAll('.checkbox-execucao:checked'))
+        .map(cb => cb.value);
+
+      if (!selecionados.length) {
+        alert('Selecione pelo menos uma execução para exportar.');
+        return;
+      }
+
+      inputsExecucoes.innerHTML = '';
+
+      selecionados.forEach((id) => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'execucoes';
+        input.value = id;
+        inputsExecucoes.appendChild(input);
+      });
+
+      formExportar.submit();
+    });
+
     filtroStatus.addEventListener('change', aplicarFiltros);
     filtroAlgoritmo.addEventListener('input', aplicarFiltros);
     filtroTamanho.addEventListener('input', aplicarFiltros);
 
     aplicarFiltros();
+    atualizarSelecionarTodos();
   });
 </script>
 {% endblock %}
