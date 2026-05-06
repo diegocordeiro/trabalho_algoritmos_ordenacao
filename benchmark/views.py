@@ -15,7 +15,7 @@ def pagina_inicial(request):
         form = ConfiguracaoBenchmarkForm(request.POST)
         if form.is_valid():
             execucao = ExecucaoBenchmark.objects.create(
-                nome=form.cleaned_data['nome'] or 'Execucao Parte I',
+                nome=form.cleaned_data['nome'] or f'{form.cleaned_data["algoritmo"]} :: Tamanho {form.cleaned_data["tamanho"]}',
                 algoritmos=[form.cleaned_data['algoritmo']],
                 condicoes=form.cleaned_data['condicoes'],
                 tamanhos=[int(form.cleaned_data['tamanho'])],
