@@ -2,12 +2,14 @@
 {% load humanize %}
 {% block title %}Resultados{% endblock %}
 {% block content %}
+
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h1 class="h4 mb-0">Resultados da Execução #{{ execucao.id }}</h1>
   <div>
     <a class="btn btn-outline-secondary btn-sm" href="{% url 'relatorios:exportar_csv' execucao.id %}">Exportar CSV</a>
     <a href="/" class="btn btn-primary btn-sm">Nova execução</a>
     <a href="/execucoes/" class="btn btn-warning btn-sm">Ir para execuções</a>
+    <a href="/comparar/" class="btn btn-secondary btn-sm">Comparar algoritmos</a>
   </div>
 </div>
 
@@ -32,7 +34,7 @@
             <td>{{ m.condicao }}</td>
             <td>{{ m.tamanho|intcomma }}</td>
             <td>{{ m.media_tempo_ms|floatformat:2|intcomma }}</td>
-            <td>{{ m.media_comparacoes|floatformat:2|intcomma  }}</td>
+            <td>{{ m.media_comparacoes|floatformat:2|intcomma }}</td>
           </tr>
           {% endfor %}
         </tbody>
@@ -44,18 +46,17 @@
 <div class="row g-4 mb-4">
   <div class="col-lg-6">
     <div class="card">
-      <div class="card-body">
-        <h2 class="h6">Tamanho x Tempo</h2>
-        <p class="text-muted small mb-2" id="notaGraficoTempo"></p>
+      <div class="card-body" style="height:350px;">
+        <h2 class="h6">Tempo médio</h2>
         <canvas id="graficoTempo"></canvas>
       </div>
     </div>
   </div>
+
   <div class="col-lg-6">
     <div class="card">
-      <div class="card-body">
-        <h2 class="h6">Tamanho x Comparações</h2>
-        <p class="text-muted small mb-2" id="notaGraficoComparacoes"></p>
+      <div class="card-body" style="height:350px;">
+        <h2 class="h6">Comparações médias</h2>
         <canvas id="graficoComparacoes"></canvas>
       </div>
     </div>
@@ -93,115 +94,129 @@
     </div>
   </div>
 </div>
-<div class="d-flex justify-content-end mt-3">
-  <a class="btn btn-outline-primary" href="{% url 'benchmark:comparar_algoritmos' %}">Abrir comparação para entradas grandes</a>
-</div>
+
 {{ dados_grafico_json|json_script:"dados-graficos" }}
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-const dados = JSON.parse(document.getElementById('dados-graficos').textContent);
-const labels = [...new Set(Object.values(dados).flatMap(d => d.tamanhos))].sort((a,b)=>a-b);
-const palette = ['#0d6efd','#198754','#dc3545','#fd7e14','#6f42c1','#20c997','#6610f2','#6c757d','#d63384'];
-const seriesTempo = [];
-const seriesComparacoes = [];
-const tipoGrafico = labels.length <= 1 ? 'bar' : 'line';
-const modoUnicoPonto = labels.length <= 1;
-const notaTempo = document.getElementById('notaGraficoTempo');
-const notaComparacoes = document.getElementById('notaGraficoComparacoes');
-let idx = 0;
-for (const [nome, serie] of Object.entries(dados)) {
-  const mapaTempo = new Map(serie.tamanhos.map((t, i) => [t, serie.tempos[i]]));
-  const mapaComparacoes = new Map(serie.tamanhos.map((t, i) => [t, serie.comparacoes[i]]));
-  const cor = palette[idx % palette.length];
-  seriesTempo.push({
-    label: nome,
-    data: labels.map(l => mapaTempo.get(l) ?? null),
-    borderColor: cor,
-    backgroundColor: cor,
-    pointRadius: modoUnicoPonto ? 7 : 5,
-    pointHoverRadius: modoUnicoPonto ? 9 : 7,
-    borderWidth: 3,
-    tension: 0.2
-  });
-  seriesComparacoes.push({
-    label: nome,
-    data: labels.map(l => mapaComparacoes.get(l) ?? null),
-    borderColor: cor,
-    backgroundColor: cor,
-    pointRadius: modoUnicoPonto ? 7 : 5,
-    pointHoverRadius: modoUnicoPonto ? 9 : 7,
-    borderWidth: 3,
-    tension: 0.2
-  });
-  idx += 1;
-}
+document.addEventListener('DOMContentLoaded', function () {
 
-if (modoUnicoPonto) {
-  notaTempo.textContent = 'Exibindo barra por haver apenas um tamanho de entrada nesta execução.';
-  notaComparacoes.textContent = 'Exibindo barra por haver apenas um tamanho de entrada nesta execução.';
-} else {
-  notaTempo.textContent = 'Linha temporal por tamanho para facilitar comparação de evolução.';
-  notaComparacoes.textContent = 'Linha temporal por tamanho para facilitar comparação de evolução.';
-}
+  const dados = JSON.parse(document.getElementById('dados-graficos').textContent);
 
-const opcoesBase = {
-  responsive: true,
-  maintainAspectRatio: true,
-  scales: {
-    x: {
-      title: { display: true, text: 'Tamanho da entrada' },
-      grid: { color: 'rgba(0, 0, 0, 0.06)' }
+  const labels = [];
+  const dataTempo = [];
+  const dataComparacoes = [];
+  const desviosTempo = [];
+  const desviosComparacoes = [];
+
+  const safeLog = (v) => {
+    const n = Number(v);
+    return (!isFinite(n) || n <= 0) ? 1 : n;
+  };
+
+  Object.keys(dados).forEach((chave) => {
+    const serie = dados[chave];
+
+    labels.push(chave.replace('-', ' | '));
+
+    dataTempo.push(safeLog(serie.tempos?.[0]));
+    dataComparacoes.push(safeLog(serie.comparacoes?.[0]));
+
+    desviosTempo.push(Number(serie.desvio_tempo?.[0] ?? 0));
+    desviosComparacoes.push(Number(serie.desvio_comparacoes?.[0] ?? 0));
+  });
+
+  const format = (v) =>
+    Number(v).toLocaleString('pt-BR', { maximumFractionDigits: 2 });
+
+  const percentual = (desvio, media) =>
+    (media > 0 ? (desvio / media) * 100 : 0);
+
+  // ===== TEMPO =====
+  new Chart(document.getElementById('graficoTempo'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Tempo médio (ms)',
+        data: dataTempo,
+        backgroundColor: '#0d6efd',
+        maxBarThickness: 60
+      }]
     },
-    y: {
-      beginAtZero: true,
-      grid: { color: 'rgba(0, 0, 0, 0.06)' }
-    }
-  },
-  plugins: {
-    legend: { position: 'bottom' },
-    tooltip: {
-      callbacks: {
-        label: (ctx) => `${ctx.dataset.label}: ${Number(ctx.parsed.y).toLocaleString('pt-BR')}`
-      }
-    }
-  }
-};
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        tooltip: {
+          callbacks: {
+            label: (ctx) => {
+              const i = ctx.dataIndex;
+              const media = dataTempo[i];
+              const desvio = desviosTempo[i];
+              const perc = percentual(desvio, media);
 
-new Chart(document.getElementById('graficoTempo'), {
-  type: tipoGrafico,
-  data: {labels, datasets: seriesTempo},
-  options: {
-    ...opcoesBase,
-    plugins: {
-      ...opcoesBase.plugins,
-      tooltip: {
-        callbacks: {
-          label: (ctx) => `${ctx.dataset.label}: ${Number(ctx.parsed.y).toLocaleString('pt-BR')} ms`
+              return `Média: ${format(media)} ms (± ${format(desvio)} | ${format(perc)}%)`;
+            }
+          }
+        }
+      },
+      scales: {
+        y: {
+          type: 'logarithmic',
+          min: 1,
+          title: {
+            display: true,
+            text: 'Tempo (ms)'
+          }
         }
       }
-    },
-    scales: {
-      ...opcoesBase.scales,
-      y: {
-        ...opcoesBase.scales.y,
-        title: { display: true, text: 'Tempo médio (ms)' }
-      }
     }
-  }
-});
+  });
 
-new Chart(document.getElementById('graficoComparacoes'), {
-  type: tipoGrafico,
-  data: {labels, datasets: seriesComparacoes},
-  options: {
-    ...opcoesBase,
-    scales: {
-      ...opcoesBase.scales,
-      y: {
-        ...opcoesBase.scales.y,
-        title: { display: true, text: 'Comparações médias' }
+  // ===== COMPARAÇÕES =====
+  new Chart(document.getElementById('graficoComparacoes'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Comparações médias',
+        data: dataComparacoes,
+        backgroundColor: '#198754',
+        maxBarThickness: 60
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        tooltip: {
+          callbacks: {
+            label: (ctx) => {
+              const i = ctx.dataIndex;
+              const media = dataComparacoes[i];
+              const desvio = desviosComparacoes[i];
+              const perc = percentual(desvio, media);
+
+              return `Média: ${format(media)} (± ${format(desvio)} | ${format(perc)}%)`;
+            }
+          }
+        }
+      },
+      scales: {
+        y: {
+          type: 'logarithmic',
+          min: 1,
+          title: {
+            display: true,
+            text: 'Comparações'
+          }
+        }
       }
     }
-  }
+  });
+
 });
 </script>
+
 {% endblock %}

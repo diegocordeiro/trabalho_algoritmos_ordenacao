@@ -1,7 +1,7 @@
 import random
 import time
-
-from django.db.models import Avg
+import statistics
+from collections import defaultdict
 
 from benchmark.models import ExecucaoBenchmark, ResultadoExecucao
 from ordenacao.algoritmos import ALGORITMOS
@@ -117,18 +117,49 @@ def executar_benchmark(execucao_id):
 
 
 def medias_por_combinacao(execucao):
-    # Inicia consulta de resultados filtrando apenas a execucao informada.
-    agrupado = (
-        ResultadoExecucao.objects.filter(execucao=execucao)
-        # Define agrupamento por algoritmo, condicao e tamanho.
-        .values('algoritmo', 'condicao', 'tamanho')
-        # Calcula medias de tempo e comparacoes por grupo.
-        .annotate(media_tempo_ms=Avg('tempo_ms'), media_comparacoes=Avg('comparacoes'))
-        # Ordena os grupos para exibicao consistente.
-        .order_by('algoritmo', 'condicao', 'tamanho')
-    )
-    # Materializa o queryset agregado em lista Python.
-    return list(agrupado)
+    resultados = ResultadoExecucao.objects.filter(execucao=execucao)
+
+    grupos = defaultdict(list)
+
+    for r in resultados:
+        chave = (r.algoritmo, r.condicao, r.tamanho)
+        grupos[chave].append(r)
+
+    medias = []
+    dados = {}
+
+    for (algoritmo, condicao, tamanho), itens in grupos.items():
+        tempos = [r.tempo_ms for r in itens]
+        comparacoes = [r.comparacoes for r in itens]
+
+        media_tempo = sum(tempos) / len(tempos)
+        media_comp = sum(comparacoes) / len(comparacoes)
+
+        desvio_tempo = statistics.stdev(tempos) if len(tempos) > 1 else 0
+        desvio_comp = statistics.stdev(comparacoes) if len(comparacoes) > 1 else 0
+
+        medias.append({
+            "algoritmo": algoritmo,
+            "condicao": condicao,
+            "tamanho": tamanho,
+            "media_tempo_ms": media_tempo,
+            "desvio_tempo_ms": desvio_tempo,
+            "media_comparacoes": media_comp,
+            "desvio_comparacoes": desvio_comp,
+            "n": len(itens),
+        })
+
+        chave_nome = f"{algoritmo}-{condicao}"
+
+        dados[chave_nome] = {
+            "tamanhos": [tamanho],
+            "tempos": [media_tempo],
+            "desvio_tempo": [desvio_tempo],
+            "comparacoes": [media_comp],
+            "desvio_comparacoes": [desvio_comp],
+        }
+
+    return medias, dados
 
 
 def dados_grafico(execucao):

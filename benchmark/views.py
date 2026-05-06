@@ -60,12 +60,12 @@ def status_execucao(request, execucao_id):
 def resultados_execucao(request, execucao_id):
     execucao = get_object_or_404(ExecucaoBenchmark, id=execucao_id)
     resultados = ResultadoExecucao.objects.filter(execucao=execucao)
-    medias = medias_por_combinacao(execucao)
+    medias, dados_grafico = medias_por_combinacao(execucao)
     contexto = {
         'execucao': execucao,
         'resultados': resultados,
         'medias': medias,
-        'dados_grafico_json': dados_grafico(execucao),
+        'dados_grafico_json': dados_grafico,
     }
     return render(request, 'benchmark/resultados.html', contexto)
 
