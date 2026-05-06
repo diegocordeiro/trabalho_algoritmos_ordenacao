@@ -2,7 +2,8 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_POST
-from django.db.models import Avg
+from django.db.models import Avg, FloatField
+from django.db.models.functions import Round, Cast
 
 from benchmark.forms import ConfiguracaoBenchmarkForm
 from benchmark.models import ExecucaoBenchmark, ResultadoExecucao
@@ -76,8 +77,8 @@ def comparar_algoritmos(request):
         resultados
         .values('algoritmo', 'condicao', 'tamanho')
         .annotate(
-            media_tempo_ms=Avg('tempo_ms'),
-            media_comparacoes=Avg('comparacoes')
+            media_tempo_ms=Cast(Round(Avg('tempo_ms'), 2), FloatField()),
+            media_comparacoes=Cast(Round(Avg('comparacoes'), 2), FloatField())
         )
         .order_by('algoritmo', 'condicao', 'tamanho')
     )

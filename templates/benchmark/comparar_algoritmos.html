@@ -185,7 +185,11 @@ function montarComparacaoGrandes() {
           tooltip: {
             callbacks: {
               label: function(ctx) {
-                return `${ctx.dataset.label}: ${Number(ctx.parsed.y).toLocaleString('pt-BR')}`;
+                const valor = Number(ctx.parsed.y);
+                return `${ctx.dataset.label}: ${valor.toLocaleString('pt-BR', {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2
+                })}`;
               }
             }
           }
