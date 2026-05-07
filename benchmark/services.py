@@ -137,6 +137,22 @@ def medias_por_combinacao(execucao):
 
         desvio_tempo = statistics.stdev(tempos) if len(tempos) > 1 else 0
         desvio_comp = statistics.stdev(comparacoes) if len(comparacoes) > 1 else 0
+        cv_tempo = (desvio_tempo / media_tempo * 100) if media_tempo > 0 else 0
+        cv_comp = (desvio_comp / media_comp * 100) if media_comp > 0 else 0
+
+        if cv_tempo < 5:
+            classe_cv_tempo = 'muito estável'
+        elif cv_tempo <= 15:
+            classe_cv_tempo = 'aceitável'
+        else:
+            classe_cv_tempo = 'instável'
+
+        if cv_comp < 5:
+            classe_cv_comp = 'muito estável'
+        elif cv_comp <= 15:
+            classe_cv_comp = 'aceitável'
+        else:
+            classe_cv_comp = 'instável'
 
         medias.append({
             "algoritmo": algoritmo,
@@ -144,20 +160,38 @@ def medias_por_combinacao(execucao):
             "tamanho": tamanho,
             "media_tempo_ms": media_tempo,
             "desvio_tempo_ms": desvio_tempo,
+            "cv_tempo_pct": cv_tempo,
+            "classe_cv_tempo": classe_cv_tempo,
             "media_comparacoes": media_comp,
             "desvio_comparacoes": desvio_comp,
+            "cv_comparacoes_pct": cv_comp,
+            "classe_cv_comparacoes": classe_cv_comp,
             "n": len(itens),
         })
 
         chave_nome = f"{algoritmo}-{condicao}"
 
-        dados[chave_nome] = {
-            "tamanhos": [tamanho],
-            "tempos": [media_tempo],
-            "desvio_tempo": [desvio_tempo],
-            "comparacoes": [media_comp],
-            "desvio_comparacoes": [desvio_comp],
-        }
+        if chave_nome not in dados:
+            dados[chave_nome] = {
+                "tamanhos": [],
+                "tempos": [],
+                "desvio_tempo": [],
+                "cv_tempo_pct": [],
+                "classe_cv_tempo": [],
+                "comparacoes": [],
+                "desvio_comparacoes": [],
+                "cv_comparacoes_pct": [],
+                "classe_cv_comparacoes": [],
+            }
+        dados[chave_nome]["tamanhos"].append(tamanho)
+        dados[chave_nome]["tempos"].append(media_tempo)
+        dados[chave_nome]["desvio_tempo"].append(desvio_tempo)
+        dados[chave_nome]["cv_tempo_pct"].append(cv_tempo)
+        dados[chave_nome]["classe_cv_tempo"].append(classe_cv_tempo)
+        dados[chave_nome]["comparacoes"].append(media_comp)
+        dados[chave_nome]["desvio_comparacoes"].append(desvio_comp)
+        dados[chave_nome]["cv_comparacoes_pct"].append(cv_comp)
+        dados[chave_nome]["classe_cv_comparacoes"].append(classe_cv_comp)
 
     return medias, dados
 

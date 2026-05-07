@@ -24,7 +24,11 @@
             <th>Condição</th>
             <th>Tamanho</th>
             <th>Média tempo (ms)</th>
+            <th>Desvio padrão tempo (ms)</th>
+            <th>CV tempo</th>
             <th>Média comparações</th>
+            <th>Desvio padrão comparações</th>
+            <th>CV comparações</th>
           </tr>
         </thead>
         <tbody>
@@ -34,7 +38,11 @@
             <td>{{ m.condicao }}</td>
             <td>{{ m.tamanho|intcomma }}</td>
             <td>{{ m.media_tempo_ms|floatformat:2|intcomma }}</td>
+            <td>±{{ m.desvio_tempo_ms|floatformat:2|intcomma }}</td>
+            <td>{{ m.cv_tempo_pct|floatformat:2 }}% ({{ m.classe_cv_tempo }})</td>
             <td>{{ m.media_comparacoes|floatformat:2|intcomma }}</td>
+            <td>±{{ m.desvio_comparacoes|floatformat:2|intcomma }}</td>
+            <td>{{ m.cv_comparacoes_pct|floatformat:2 }}% ({{ m.classe_cv_comparacoes }})</td>
           </tr>
           {% endfor %}
         </tbody>
@@ -100,6 +108,26 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+  const pluginRotuloMedia = {
+    id: 'pluginRotuloMedia',
+    afterDatasetsDraw(chart) {
+      const { ctx } = chart;
+      ctx.save();
+      chart.data.datasets.forEach((dataset, datasetIndex) => {
+        const meta = chart.getDatasetMeta(datasetIndex);
+        meta.data.forEach((element, index) => {
+          const valor = dataset.data[index];
+          if (valor == null) return;
+          const texto = Number(valor).toLocaleString('pt-BR', { maximumFractionDigits: 2 });
+          ctx.font = '11px sans-serif';
+          ctx.fillStyle = '#1f2937';
+          ctx.textAlign = 'center';
+          ctx.fillText(texto, element.x, element.y - 8);
+        });
+      });
+      ctx.restore();
+    }
+  };
 
   const dados = JSON.parse(document.getElementById('dados-graficos').textContent);
 
@@ -155,8 +183,9 @@ document.addEventListener('DOMContentLoaded', function () {
               const media = dataTempo[i];
               const desvio = desviosTempo[i];
               const perc = percentual(desvio, media);
+              const classe = (perc < 5) ? 'muito estável' : (perc <= 15 ? 'aceitável' : 'instável');
 
-              return `Média: ${format(media)} ms (± ${format(desvio)} | ${format(perc)}%)`;
+              return `Média: ${format(media)} ms (± ${format(desvio)} | CV ${format(perc)}% - ${classe})`;
             }
           }
         }
@@ -171,7 +200,8 @@ document.addEventListener('DOMContentLoaded', function () {
           }
         }
       }
-    }
+    },
+    plugins: [pluginRotuloMedia]
   });
 
   // ===== COMPARAÇÕES =====
@@ -197,8 +227,9 @@ document.addEventListener('DOMContentLoaded', function () {
               const media = dataComparacoes[i];
               const desvio = desviosComparacoes[i];
               const perc = percentual(desvio, media);
+              const classe = (perc < 5) ? 'muito estável' : (perc <= 15 ? 'aceitável' : 'instável');
 
-              return `Média: ${format(media)} (± ${format(desvio)} | ${format(perc)}%)`;
+              return `Média: ${format(media)} (± ${format(desvio)} | CV ${format(perc)}% - ${classe})`;
             }
           }
         }
@@ -213,7 +244,8 @@ document.addEventListener('DOMContentLoaded', function () {
           }
         }
       }
-    }
+    },
+    plugins: [pluginRotuloMedia]
   });
 
 });
