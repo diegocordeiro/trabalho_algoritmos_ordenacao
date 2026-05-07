@@ -5,7 +5,7 @@ def ordenar_bublesort(vetor):
     comparacoes = 0
     # Captura o tamanho do vetor para controlar os limites dos lacos.
     n = len(arr)
-    # Inicia o laco externo do Bubble Sort conforme Cormen.
+    # Inicia o laco externo do Bubble Sort.
     for i in range(n):
         # Inicia o laco interno para mover o menor elemento para o inicio.
         for j in range(n - 1, i, -1):
