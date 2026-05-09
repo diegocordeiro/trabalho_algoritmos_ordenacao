@@ -1,11 +1,13 @@
 import csv
+import statistics
+from collections import defaultdict
 
-from django.db.models import Avg, StdDev, Count
 from django.http import HttpResponse, HttpResponseBadRequest
 from django.shortcuts import get_object_or_404
 from django.views.decorators.http import require_POST
 
 from benchmark.models import ExecucaoBenchmark, ResultadoExecucao
+from benchmark.services import _filtrar_outliers
 
 
 def _fmt(valor, casas=4):
@@ -18,20 +20,16 @@ def _fmt(valor, casas=4):
     return f'{valor:.{casas}f}'
 
 
-def _gerar_csv_resultados(resultados, nome_arquivo):
+def _gerar_csv_resultados(resultados_qs, nome_arquivo, incluir_execucao=False):
     """
-    Gera CSV com métricas estatísticas.
-    StdDev (desvio padrão)
-    Count (número de amostras)
-    Controle de casas decimais no CSV
-    Média hierárquica (por execução → depois global)
+    Gera CSV com métricas estatísticas filtradas (sem outliers).
+    Agrupa resultados por algoritmo, condicao, tamanho (e execucao_id se aplicável),
+    aplica _filtrar_outliers nos tempos e comparações, e computa CV filtrado.
     """
     resposta = HttpResponse(content_type='text/csv; charset=utf-8')
     resposta['Content-Disposition'] = f'attachment; filename="{nome_arquivo}"'
 
     writer = csv.writer(resposta)
-    primeiro = resultados[0] if resultados else None
-    incluir_execucao = bool(primeiro and 'execucao_id' in primeiro)
 
     cabecalho = []
     if incluir_execucao:
@@ -48,38 +46,89 @@ def _gerar_csv_resultados(resultados, nome_arquivo):
         'std_comparacoes',
         'cv_comparacoes_pct',
         'classe_cv_comparacoes',
-        'n'
+        'n_original',
+        'n_filtrado_tempo',
+        'n_filtrado_comp',
     ])
     writer.writerow(cabecalho)
 
-    for item in resultados:
-        media_tempo = item['media_tempo_ms'] or 0
-        std_tempo = item['std_tempo_ms'] or 0
-        cv_tempo = (std_tempo / media_tempo * 100) if media_tempo > 0 else 0
-        if cv_tempo < 5:
-            classe_cv_tempo = 'muito estável'
-        elif cv_tempo <= 15:
-            classe_cv_tempo = 'aceitável'
+    # Agrupa resultados por chave de combinação
+    grupos = defaultdict(list)
+    for r in resultados_qs:
+        if incluir_execucao:
+            chave = (r.execucao_id, r.algoritmo, r.condicao, r.tamanho)
         else:
-            classe_cv_tempo = 'instável'
+            chave = (r.algoritmo, r.condicao, r.tamanho)
+        grupos[chave].append(r)
 
-        media_comp = item['media_comparacoes'] or 0
-        std_comp = item['std_comparacoes'] or 0
-        cv_comp = (std_comp / media_comp * 100) if media_comp > 0 else 0
-        if cv_comp < 5:
-            classe_cv_comp = 'muito estável'
-        elif cv_comp <= 15:
-            classe_cv_comp = 'aceitável'
+    for chave, itens in sorted(grupos.items()):
+        tempos = [r.tempo_ms for r in itens]
+        comparacoes = [r.comparacoes for r in itens]
+
+        n_original = len(itens)
+
+        # --- FILTRAGEM DE OUTLIERS ---
+        tempos_filt, removeu_tempo = _filtrar_outliers(tempos)
+        comps_filt, removeu_comp = _filtrar_outliers(comparacoes)
+
+        # --- TEMPO (com outliers removidos se aplicável) ---
+        if removeu_tempo and len(tempos_filt) >= 2:
+            media_tempo = statistics.mean(tempos_filt)
+            std_tempo = statistics.stdev(tempos_filt)
+            cv_tempo = (std_tempo / media_tempo * 100) if media_tempo > 0 else 0
+            n_filt_tempo = len(tempos_filt)
         else:
-            classe_cv_comp = 'instável'
+            media_tempo = statistics.mean(tempos)
+            std_tempo = statistics.stdev(tempos) if len(tempos) > 1 else 0
+            cv_tempo = (std_tempo / media_tempo * 100) if media_tempo > 0 else 0
+            n_filt_tempo = n_original
+
+        if cv_tempo <= 10:
+            classe_cv_tempo = 'Muito Baixa Variação'
+        elif cv_tempo <= 20:
+            classe_cv_tempo = 'Moderada Variação'
+        elif cv_tempo <= 30:
+            classe_cv_tempo = 'Alta Variação'
+        else:
+            classe_cv_tempo = 'Variação Muito Alta'
+
+        # --- COMPARAÇÕES (com outliers removidos se aplicável) ---
+        if removeu_comp and len(comps_filt) >= 2:
+            media_comp = statistics.mean(comps_filt)
+            std_comp = statistics.stdev(comps_filt)
+            cv_comp = (std_comp / media_comp * 100) if media_comp > 0 else 0
+            n_filt_comp = len(comps_filt)
+        else:
+            media_comp = statistics.mean(comparacoes)
+            std_comp = statistics.stdev(comparacoes) if len(comparacoes) > 1 else 0
+            cv_comp = (std_comp / media_comp * 100) if media_comp > 0 else 0
+            n_filt_comp = n_original
+
+        if cv_comp <= 10:
+            classe_cv_comp = 'Muito Baixa Variação'
+        elif cv_comp <= 20:
+            classe_cv_comp = 'Moderada Variação'
+        elif cv_comp <= 30:
+            classe_cv_comp = 'Alta Variação'
+        else:
+            classe_cv_comp = 'Variação Muito Alta'
 
         linha = []
         if incluir_execucao:
-            linha.append(item['execucao_id'])
+            linha.append(chave[0])  # execucao_id
+            linha.extend([
+                chave[1],  # algoritmo
+                chave[2],  # condicao
+                chave[3],  # tamanho
+            ])
+        else:
+            linha.extend([
+                chave[0],  # algoritmo
+                chave[1],  # condicao
+                chave[2],  # tamanho
+            ])
+
         linha.extend([
-            item['algoritmo'],
-            item['condicao'],
-            item['tamanho'],
             _fmt(media_tempo),
             _fmt(std_tempo),
             _fmt(cv_tempo, 2),
@@ -88,71 +137,44 @@ def _gerar_csv_resultados(resultados, nome_arquivo):
             _fmt(std_comp),
             _fmt(cv_comp, 2),
             classe_cv_comp,
-            item['n'],
+            n_original,
+            n_filt_tempo,
+            n_filt_comp,
         ])
         writer.writerow(linha)
 
     return resposta
 
 
-def _query_agregada(filtro):
-    """
-    Centraliza a lógica de agregação.
-    """
-    return (
-        ResultadoExecucao.objects
-        .filter(**filtro)
-        .values('algoritmo', 'condicao', 'tamanho')
-        .annotate(
-            media_tempo_ms=Avg('tempo_ms'),
-            std_tempo_ms=StdDev('tempo_ms'),
-            media_comparacoes=Avg('comparacoes'),
-            std_comparacoes=StdDev('comparacoes'),
-            n=Count('id')
-        )
-        .order_by('algoritmo', 'condicao', 'tamanho')
-    )
-
-
 def exportar_csv(request, execucao_id):
     """
-    Exporta uma execução com estatísticas completas.
+    Exporta uma execução com estatísticas filtradas (sem outliers).
     """
     execucao = get_object_or_404(ExecucaoBenchmark, id=execucao_id)
 
-    resultados = _query_agregada({'execucao': execucao})
+    resultados = ResultadoExecucao.objects.filter(execucao=execucao).order_by('algoritmo', 'condicao', 'tamanho')
 
     return _gerar_csv_resultados(
         resultados,
-        f'resultados_execucao_{execucao_id}.csv'
+        f'resultados_execucao_{execucao_id}.csv',
+        incluir_execucao=False
     )
 
 
 @require_POST
 def exportar_csv_selecionadas(request):
     """
-    Exporta múltiplas execuções no mesmo formato estatístico do CSV individual.
+    Exporta múltiplas execuções no mesmo formato estatístico filtrado (sem outliers).
     """
     ids = request.POST.getlist('execucoes')
 
     if not ids:
         return HttpResponseBadRequest('Selecione ao menos uma execução.')
 
-    resultados = list(
-        ResultadoExecucao.objects
-        .filter(execucao_id__in=ids)
-        .values('execucao_id', 'algoritmo', 'condicao', 'tamanho')
-        .annotate(
-            media_tempo_ms=Avg('tempo_ms'),
-            std_tempo_ms=StdDev('tempo_ms'),
-            media_comparacoes=Avg('comparacoes'),
-            std_comparacoes=StdDev('comparacoes'),
-            n=Count('id')
-        )
-        .order_by('execucao_id', 'algoritmo', 'condicao', 'tamanho')
-    )
+    resultados = ResultadoExecucao.objects.filter(execucao_id__in=ids).order_by('execucao_id', 'algoritmo', 'condicao', 'tamanho')
 
     return _gerar_csv_resultados(
         resultados,
-        'resultados_estatisticos_selecionados.csv'
+        'resultados_estatisticos_selecionados.csv',
+        incluir_execucao=True
     )
