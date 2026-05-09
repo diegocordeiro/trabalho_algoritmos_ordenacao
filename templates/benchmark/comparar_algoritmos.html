@@ -111,12 +111,24 @@ function montarComparacaoGrandes() {
     if (!mapaSeries.get(chave)[item.tamanho]) {
       mapaSeries.get(chave)[item.tamanho] = {
         tempos: [],
-        comparacoes: []
+        comparacoes: [],
+        desvios_tempo: [],
+        desvios_comparacoes: [],
+        cvs_tempo: [],
+        cvs_comparacoes: [],
+        classes_cv_tempo: [],
+        classes_cv_comparacoes: []
       };
     }
 
     mapaSeries.get(chave)[item.tamanho].tempos.push(Number(item.media_tempo_ms));
     mapaSeries.get(chave)[item.tamanho].comparacoes.push(Number(item.media_comparacoes));
+    mapaSeries.get(chave)[item.tamanho].desvios_tempo.push(Number(item.desvio_tempo_ms || 0));
+    mapaSeries.get(chave)[item.tamanho].desvios_comparacoes.push(Number(item.desvio_comparacoes || 0));
+    mapaSeries.get(chave)[item.tamanho].cvs_tempo.push(Number(item.cv_tempo_pct || 0));
+    mapaSeries.get(chave)[item.tamanho].cvs_comparacoes.push(Number(item.cv_comparacoes_pct || 0));
+    mapaSeries.get(chave)[item.tamanho].classes_cv_tempo.push(item.classe_cv_tempo || '');
+    mapaSeries.get(chave)[item.tamanho].classes_cv_comparacoes.push(item.classe_cv_comparacoes || '');
   }
 
   const coresBase = [
@@ -140,6 +152,12 @@ function montarComparacaoGrandes() {
       borderWidth: 3,
       pointRadius: 4,
       pointHoverRadius: 7,
+      // Metadados por ponto para tooltip (desvio, cv, classe)
+      _extra: tamanhos.map(t => ({
+        desvios: porTamanho[t]?.desvios_tempo || [],
+        cvs: porTamanho[t]?.cvs_tempo || [],
+        classes: porTamanho[t]?.classes_cv_tempo || []
+      }))
     });
 
     datasets.push({
@@ -152,6 +170,12 @@ function montarComparacaoGrandes() {
       borderWidth: 2,
       pointRadius: 3,
       pointHoverRadius: 6,
+      // Metadados por ponto para tooltip (desvio, cv, classe)
+      _extra: tamanhos.map(t => ({
+        desvios: porTamanho[t]?.desvios_comparacoes || [],
+        cvs: porTamanho[t]?.cvs_comparacoes || [],
+        classes: porTamanho[t]?.classes_cv_comparacoes || []
+      }))
     });
 
     i++;
@@ -186,10 +210,26 @@ function montarComparacaoGrandes() {
             callbacks: {
               label: function(ctx) {
                 const valor = Number(ctx.parsed.y);
-                return `${ctx.dataset.label}: ${valor.toLocaleString('pt-BR', {
+                const extra = ctx.dataset._extra?.[ctx.dataIndex];
+                let desvio = 0, cv = 0, classe = '';
+
+                if (extra) {
+                  desvio = media(extra.desvios) || 0;
+                  cv = media(extra.cvs) || 0;
+                  classe = extra.classes[0] || '';
+                  // Se houver múltiplos valores, usa o primeiro (já que por combinação única há um só)
+                }
+
+                let linha = `${ctx.dataset.label}: ${valor.toLocaleString('pt-BR', {
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2
                 })}`;
+
+                if (desvio > 0 || cv > 0) {
+                  linha += ` (± ${desvio.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} | CV ${cv.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}% - ${classe})`;
+                }
+
+                return linha;
               }
             }
           }

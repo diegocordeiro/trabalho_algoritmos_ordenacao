@@ -1,3 +1,5 @@
+import statistics
+from collections import defaultdict
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -71,18 +73,57 @@ def resultados_execucao(request, execucao_id):
 
 
 def comparar_algoritmos(request):
+
     resultados = ResultadoExecucao.objects.all().order_by('algoritmo', 'condicao', 'tamanho')
 
-    medias = (
-        resultados
-        .values('algoritmo', 'condicao', 'tamanho')
-        .annotate(
-            media_tempo_ms=Cast(Round(Avg('tempo_ms'), 2), FloatField()),
-            media_comparacoes=Cast(Round(Avg('comparacoes'), 2), FloatField())
-        )
-        .order_by('algoritmo', 'condicao', 'tamanho')
-    )
+    grupos = defaultdict(list)
+
+    for r in resultados:
+        chave = (r.algoritmo, r.condicao, r.tamanho)
+        grupos[chave].append(r)
+
+    medias = []
+    for (algoritmo, condicao, tamanho), itens in grupos.items():
+        tempos = [r.tempo_ms for r in itens]
+        comparacoes = [r.comparacoes for r in itens]
+
+        media_tempo = round(sum(tempos) / len(tempos), 2)
+        media_comp = round(sum(comparacoes) / len(comparacoes), 2)
+
+        desvio_tempo = round(statistics.stdev(tempos), 2) if len(tempos) > 1 else 0
+        desvio_comp = round(statistics.stdev(comparacoes), 2) if len(comparacoes) > 1 else 0
+
+        cv_tempo = round((desvio_tempo / media_tempo * 100), 2) if media_tempo > 0 else 0
+        cv_comp = round((desvio_comp / media_comp * 100), 2) if media_comp > 0 else 0
+
+        if cv_tempo < 5:
+            classe_cv_tempo = 'muito estável'
+        elif cv_tempo <= 15:
+            classe_cv_tempo = 'aceitável'
+        else:
+            classe_cv_tempo = 'instável'
+
+        if cv_comp < 5:
+            classe_cv_comp = 'muito estável'
+        elif cv_comp <= 15:
+            classe_cv_comp = 'aceitável'
+        else:
+            classe_cv_comp = 'instável'
+
+        medias.append({
+            'algoritmo': algoritmo,
+            'condicao': condicao,
+            'tamanho': tamanho,
+            'media_tempo_ms': media_tempo,
+            'desvio_tempo_ms': desvio_tempo,
+            'cv_tempo_pct': cv_tempo,
+            'classe_cv_tempo': classe_cv_tempo,
+            'media_comparacoes': media_comp,
+            'desvio_comparacoes': desvio_comp,
+            'cv_comparacoes_pct': cv_comp,
+            'classe_cv_comparacoes': classe_cv_comp,
+        })
 
     return render(request, 'benchmark/comparar_algoritmos.html', {
-        'medias_json': list(medias)
+        'medias_json': medias
     })
