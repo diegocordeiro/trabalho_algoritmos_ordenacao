@@ -25,10 +25,10 @@
             <th>Tamanho</th>
             <th>Média tempo (ms)</th>
             <th>Desvio padrão tempo (ms)</th>
-            <th>CV tempo</th>
+            <th>CV tempo (s/ outliers)</th>
             <th>Média comparações</th>
             <th>Desvio padrão comparações</th>
-            <th>CV comparações</th>
+            <th>CV comparações (s/ outliers)</th>
           </tr>
         </thead>
         <tbody>
@@ -39,10 +39,10 @@
             <td>{{ m.tamanho|intcomma }}</td>
             <td>{{ m.media_tempo_ms|floatformat:2|intcomma }}</td>
             <td>±{{ m.desvio_tempo_ms|floatformat:2|intcomma }}</td>
-            <td>{{ m.cv_tempo_pct|floatformat:2 }}% ({{ m.classe_cv_tempo }})</td>
+            <td>{{ m.cv_tempo_pct_filt|floatformat:2 }}% ({{ m.classe_cv_tempo_filt }})</td>
             <td>{{ m.media_comparacoes|floatformat:2|intcomma }}</td>
             <td>±{{ m.desvio_comparacoes|floatformat:2|intcomma }}</td>
-            <td>{{ m.cv_comparacoes_pct|floatformat:2 }}% ({{ m.classe_cv_comparacoes }})</td>
+            <td>{{ m.cv_comparacoes_pct_filt|floatformat:2 }}% ({{ m.classe_cv_comparacoes_filt }})</td>
           </tr>
           {% endfor %}
         </tbody>
@@ -66,6 +66,26 @@
       <div class="card-body" style="height:350px;">
         <h2 class="h6">Comparações médias</h2>
         <canvas id="graficoComparacoes"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4 mb-4">
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-body" style="height:350px;">
+        <h2 class="h6">Tempo médio - Sem Outliers</h2>
+        <canvas id="graficoTempoSemOutliers"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-body" style="height:350px;">
+        <h2 class="h6">Comparações médias - Sem Outliers</h2>
+        <canvas id="graficoComparacoesSemOutliers"></canvas>
       </div>
     </div>
   </div>
@@ -136,6 +156,11 @@ document.addEventListener('DOMContentLoaded', function () {
   const dataComparacoes = [];
   const desviosTempo = [];
   const desviosComparacoes = [];
+  // Filtrado (sem outliers)
+  const dataTempoFilt = [];
+  const dataComparacoesFilt = [];
+  const desviosTempoFilt = [];
+  const desviosComparacoesFilt = [];
 
   const safeLog = (v) => {
     const n = Number(v);
@@ -147,11 +172,19 @@ document.addEventListener('DOMContentLoaded', function () {
 
     labels.push(chave.replace('-', ' | '));
 
+    // Original
     dataTempo.push(safeLog(serie.tempos?.[0]));
     dataComparacoes.push(safeLog(serie.comparacoes?.[0]));
 
     desviosTempo.push(Number(serie.desvio_tempo?.[0] ?? 0));
     desviosComparacoes.push(Number(serie.desvio_comparacoes?.[0] ?? 0));
+
+    // Filtrado (sem outliers) - usa o primeiro valor da lista filtrada
+    dataTempoFilt.push(safeLog(serie.tempos_filt?.[0] ?? serie.tempos?.[0]));
+    dataComparacoesFilt.push(safeLog(serie.comparacoes_filt?.[0] ?? serie.comparacoes?.[0]));
+
+    desviosTempoFilt.push(Number(serie.desvio_tempo_filt?.[0] ?? serie.desvio_tempo?.[0] ?? 0));
+    desviosComparacoesFilt.push(Number(serie.desvio_comparacoes_filt?.[0] ?? serie.desvio_comparacoes?.[0] ?? 0));
   });
 
   const format = (v) =>
@@ -183,7 +216,7 @@ document.addEventListener('DOMContentLoaded', function () {
               const media = dataTempo[i];
               const desvio = desviosTempo[i];
               const perc = percentual(desvio, media);
-              const classe = (perc < 5) ? 'muito estável' : (perc <= 15 ? 'aceitável' : 'instável');
+              const classe = (perc <= 10) ? 'Muito Baixa Variação' : (perc <= 20 ? 'Moderada Variação' : (perc <= 30 ? 'Alta Variação' : 'Variação Muito Alta'));
 
               return `Média: ${format(media)} ms (± ${format(desvio)} | CV ${format(perc)}% - ${classe})`;
             }
@@ -227,9 +260,97 @@ document.addEventListener('DOMContentLoaded', function () {
               const media = dataComparacoes[i];
               const desvio = desviosComparacoes[i];
               const perc = percentual(desvio, media);
-              const classe = (perc < 5) ? 'muito estável' : (perc <= 15 ? 'aceitável' : 'instável');
+              const classe = (perc <= 10) ? 'Muito Baixa Variação' : (perc <= 20 ? 'Moderada Variação' : (perc <= 30 ? 'Alta Variação' : 'Variação Muito Alta'));
 
               return `Média: ${format(media)} (± ${format(desvio)} | CV ${format(perc)}% - ${classe})`;
+            }
+          }
+        }
+      },
+      scales: {
+        y: {
+          type: 'logarithmic',
+          min: 1,
+          title: {
+            display: true,
+            text: 'Comparações'
+          }
+        }
+      }
+    },
+    plugins: [pluginRotuloMedia]
+  });
+
+  // ===== TEMPO - SEM OUTLIERS =====
+  new Chart(document.getElementById('graficoTempoSemOutliers'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Tempo médio (ms) - Sem Outliers',
+        data: dataTempoFilt,
+        backgroundColor: '#6f42c1',
+        maxBarThickness: 60
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        tooltip: {
+          callbacks: {
+            label: (ctx) => {
+              const i = ctx.dataIndex;
+              const media_filt = dataTempoFilt[i];
+              const desvio_filt = desviosTempoFilt[i];
+              const perc = percentual(desvio_filt, media_filt);
+              const classe = (perc <= 10) ? 'Muito Baixa Variação' : (perc <= 20 ? 'Moderada Variação' : (perc <= 30 ? 'Alta Variação' : 'Variação Muito Alta'));
+
+              return `Média (s/ outliers): ${format(media_filt)} ms (± ${format(desvio_filt)} | CV ${format(perc)}% - ${classe})`;
+            }
+          }
+        }
+      },
+      scales: {
+        y: {
+          type: 'logarithmic',
+          min: 1,
+          title: {
+            display: true,
+            text: 'Tempo (ms)'
+          }
+        }
+      }
+    },
+    plugins: [pluginRotuloMedia]
+  });
+
+  // ===== COMPARAÇÕES - SEM OUTLIERS =====
+  new Chart(document.getElementById('graficoComparacoesSemOutliers'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Comparações médias - Sem Outliers',
+        data: dataComparacoesFilt,
+        backgroundColor: '#fd7e14',
+        maxBarThickness: 60
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        tooltip: {
+          callbacks: {
+            label: (ctx) => {
+              const i = ctx.dataIndex;
+              const media_filt = dataComparacoesFilt[i];
+              const desvio_filt = desviosComparacoesFilt[i];
+              const perc = percentual(desvio_filt, media_filt);
+              const classe = (perc <= 10) ? 'Muito Baixa Variação' : (perc <= 20 ? 'Moderada Variação' : (perc <= 30 ? 'Alta Variação' : 'Variação Muito Alta'));
+
+              return `Média (s/ outliers): ${format(media_filt)} (± ${format(desvio_filt)} | CV ${format(perc)}% - ${classe})`;
             }
           }
         }

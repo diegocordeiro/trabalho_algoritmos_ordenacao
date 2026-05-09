@@ -1,10 +1,43 @@
 import random
 import time
 import statistics
+import math
 from collections import defaultdict
 
 from benchmark.models import ExecucaoBenchmark, ResultadoExecucao
 from ordenacao.algoritmos import ALGORITMOS
+
+
+def _filtrar_outliers(valores, limiar_cv=20, zscore_max=2.0):
+    """
+    Remove outliers de uma lista de valores com base no coeficiente de variacao.
+    Se o CV for maior que o limiar (indicando instabilidade), remove valores
+    cujo z-score absoluto exceda zscore_max.
+    Retorna a lista filtrada e um booleano indicando se houve remocao.
+    """
+    if len(valores) < 3:
+        return list(valores), False
+
+    media = statistics.mean(valores)
+    desvio = statistics.stdev(valores) if len(valores) > 1 else 0
+
+    if media == 0 or desvio == 0:
+        return list(valores), False
+
+    cv = (desvio / media) * 100
+
+    # So filtra se o CV indicar instabilidade
+    if cv <= limiar_cv:
+        return list(valores), False
+
+    # Remove valores com z-score absoluto acima do limite
+    filtrados = [v for v in valores if abs((v - media) / desvio) <= zscore_max]
+
+    # Se removeu todos ou quase todos, retorna os originais
+    if len(filtrados) < 2:
+        return list(valores), False
+
+    return filtrados, len(filtrados) < len(valores)
 
 
 def _gerar_vetor(condicao, tamanho):
@@ -132,6 +165,7 @@ def medias_por_combinacao(execucao):
         tempos = [r.tempo_ms for r in itens]
         comparacoes = [r.comparacoes for r in itens]
 
+        # ---- Versao original (com todos os valores) ----
         media_tempo = sum(tempos) / len(tempos)
         media_comp = sum(comparacoes) / len(comparacoes)
 
@@ -140,24 +174,71 @@ def medias_por_combinacao(execucao):
         cv_tempo = (desvio_tempo / media_tempo * 100) if media_tempo > 0 else 0
         cv_comp = (desvio_comp / media_comp * 100) if media_comp > 0 else 0
 
-        if cv_tempo < 5:
-            classe_cv_tempo = 'muito estável'
-        elif cv_tempo <= 15:
-            classe_cv_tempo = 'aceitável'
+        if cv_tempo <= 10:
+            classe_cv_tempo = 'Muito Baixa Variação'
+        elif cv_tempo <= 20:
+            classe_cv_tempo = 'Moderada Variação'
+        elif cv_tempo <= 30:
+            classe_cv_tempo = 'Alta Variação'
         else:
-            classe_cv_tempo = 'instável'
+            classe_cv_tempo = 'Variação Muito Alta'
 
-        if cv_comp < 5:
-            classe_cv_comp = 'muito estável'
-        elif cv_comp <= 15:
-            classe_cv_comp = 'aceitável'
+        if cv_comp <= 10:
+            classe_cv_comp = 'Muito Baixa Variação'
+        elif cv_comp <= 20:
+            classe_cv_comp = 'Moderada Variação'
+        elif cv_comp <= 30:
+            classe_cv_comp = 'Alta Variação'
         else:
-            classe_cv_comp = 'instável'
+            classe_cv_comp = 'Variação Muito Alta'
+
+        # ---- Versao sem outliers (filtrada) ----
+        tempos_filtrados, removeu_tempo = _filtrar_outliers(tempos)
+        comps_filtrados, removeu_comp = _filtrar_outliers(comparacoes)
+
+        if removeu_tempo and len(tempos_filtrados) >= 2:
+            media_tempo_filt = sum(tempos_filtrados) / len(tempos_filtrados)
+            desvio_tempo_filt = statistics.stdev(tempos_filtrados)
+            cv_tempo_filt = (desvio_tempo_filt / media_tempo_filt * 100) if media_tempo_filt > 0 else 0
+            classe_cv_tempo_filt = (
+                'Muito Baixa Variação' if cv_tempo_filt <= 10 else
+                'Moderada Variação' if cv_tempo_filt <= 20 else
+                'Alta Variação' if cv_tempo_filt <= 30 else
+                'Variação Muito Alta'
+            )
+        else:
+            media_tempo_filt = media_tempo
+            desvio_tempo_filt = desvio_tempo
+            cv_tempo_filt = cv_tempo
+            classe_cv_tempo_filt = classe_cv_tempo
+            removeu_tempo = False
+
+        if removeu_comp and len(comps_filtrados) >= 2:
+            media_comp_filt = sum(comps_filtrados) / len(comps_filtrados)
+            desvio_comp_filt = statistics.stdev(comps_filtrados)
+            cv_comp_filt = (desvio_comp_filt / media_comp_filt * 100) if media_comp_filt > 0 else 0
+            classe_cv_comp_filt = (
+                'Muito Baixa Variação' if cv_comp_filt <= 10 else
+                'Moderada Variação' if cv_comp_filt <= 20 else
+                'Alta Variação' if cv_comp_filt <= 30 else
+                'Variação Muito Alta'
+            )
+        else:
+            media_comp_filt = media_comp
+            desvio_comp_filt = desvio_comp
+            cv_comp_filt = cv_comp
+            classe_cv_comp_filt = classe_cv_comp
+            removeu_comp = False
+
+        n_original = len(itens)
+        n_filtrado_tempo = len(tempos_filtrados) if removeu_tempo else n_original
+        n_filtrado_comp = len(comps_filtrados) if removeu_comp else n_original
 
         medias.append({
             "algoritmo": algoritmo,
             "condicao": condicao,
             "tamanho": tamanho,
+            # Original
             "media_tempo_ms": media_tempo,
             "desvio_tempo_ms": desvio_tempo,
             "cv_tempo_pct": cv_tempo,
@@ -166,7 +247,20 @@ def medias_por_combinacao(execucao):
             "desvio_comparacoes": desvio_comp,
             "cv_comparacoes_pct": cv_comp,
             "classe_cv_comparacoes": classe_cv_comp,
-            "n": len(itens),
+            "n": n_original,
+            # Filtrado (sem outliers)
+            "media_tempo_ms_filt": media_tempo_filt,
+            "desvio_tempo_ms_filt": desvio_tempo_filt,
+            "cv_tempo_pct_filt": cv_tempo_filt,
+            "classe_cv_tempo_filt": classe_cv_tempo_filt,
+            "n_filtrado_tempo": n_filtrado_tempo,
+            "removeu_outliers_tempo": removeu_tempo,
+            "media_comparacoes_filt": media_comp_filt,
+            "desvio_comparacoes_filt": desvio_comp_filt,
+            "cv_comparacoes_pct_filt": cv_comp_filt,
+            "classe_cv_comparacoes_filt": classe_cv_comp_filt,
+            "n_filtrado_comp": n_filtrado_comp,
+            "removeu_outliers_comp": removeu_comp,
         })
 
         chave_nome = f"{algoritmo}-{condicao}"
@@ -182,6 +276,11 @@ def medias_por_combinacao(execucao):
                 "desvio_comparacoes": [],
                 "cv_comparacoes_pct": [],
                 "classe_cv_comparacoes": [],
+                # Filtrado (sem outliers)
+                "tempos_filt": [],
+                "desvio_tempo_filt": [],
+                "comparacoes_filt": [],
+                "desvio_comparacoes_filt": [],
             }
         dados[chave_nome]["tamanhos"].append(tamanho)
         dados[chave_nome]["tempos"].append(media_tempo)
@@ -192,6 +291,11 @@ def medias_por_combinacao(execucao):
         dados[chave_nome]["desvio_comparacoes"].append(desvio_comp)
         dados[chave_nome]["cv_comparacoes_pct"].append(cv_comp)
         dados[chave_nome]["classe_cv_comparacoes"].append(classe_cv_comp)
+        # Filtrado (sem outliers)
+        dados[chave_nome]["tempos_filt"].append(media_tempo_filt)
+        dados[chave_nome]["desvio_tempo_filt"].append(desvio_tempo_filt)
+        dados[chave_nome]["comparacoes_filt"].append(media_comp_filt)
+        dados[chave_nome]["desvio_comparacoes_filt"].append(desvio_comp_filt)
 
     return medias, dados
 
@@ -206,12 +310,30 @@ def dados_grafico(execucao):
         # Define chave da serie no formato "algoritmo (condicao)".
         chave = f"{item['algoritmo']} ({item['condicao']})"
         # Garante que a chave exista com listas vazias antes de inserir dados.
-        estrutura.setdefault(chave, {'tamanhos': [], 'tempos': [], 'comparacoes': []})
+        if chave not in estrutura:
+            estrutura[chave] = {
+                'tamanhos': [],
+                'tempos': [],
+                'comparacoes': [],
+                'desvio_tempo': [],
+                'desvio_comparacoes': [],
+                # Filtrado (sem outliers)
+                'tempos_filt': [],
+                'desvio_tempo_filt': [],
+                'comparacoes_filt': [],
+                'desvio_comparacoes_filt': [],
+            }
         # Adiciona tamanho na serie correspondente.
         estrutura[chave]['tamanhos'].append(item['tamanho'])
-        # Adiciona tempo medio arredondado para exibicao.
+        # Original
         estrutura[chave]['tempos'].append(round(item['media_tempo_ms'], 4))
-        # Adiciona comparacoes medias arredondadas para exibicao.
+        estrutura[chave]['desvio_tempo'].append(round(item['desvio_tempo_ms'], 4))
         estrutura[chave]['comparacoes'].append(round(item['media_comparacoes'], 2))
+        estrutura[chave]['desvio_comparacoes'].append(round(item['desvio_comparacoes'], 2))
+        # Filtrado (sem outliers)
+        estrutura[chave]['tempos_filt'].append(round(item['media_tempo_ms_filt'], 4))
+        estrutura[chave]['desvio_tempo_filt'].append(round(item['desvio_tempo_ms_filt'], 4))
+        estrutura[chave]['comparacoes_filt'].append(round(item['media_comparacoes_filt'], 2))
+        estrutura[chave]['desvio_comparacoes_filt'].append(round(item['desvio_comparacoes_filt'], 2))
     # Retorna estrutura final para consumo dos graficos na view.
     return estrutura

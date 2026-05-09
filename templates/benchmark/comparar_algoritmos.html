@@ -38,10 +38,18 @@
     </div>
 
     <!-- GRÁFICO -->
-    <div class="card">
+    <div class="card mb-4">
       <div class="card-body">
         <h3 class="h6">Tempo x Comparações (Escala Logarítmica)</h3>
         <canvas id="graficoComparacaoUnificado"></canvas>
+      </div>
+    </div>
+
+    <!-- GRÁFICO SEM OUTLIERS -->
+    <div class="card">
+      <div class="card-body">
+        <h3 class="h6">Tempo x Comparações - Sem Outliers (Escala Logarítmica)</h3>
+        <canvas id="graficoComparacaoSemOutliers"></canvas>
       </div>
     </div>
 
@@ -117,7 +125,16 @@ function montarComparacaoGrandes() {
         cvs_tempo: [],
         cvs_comparacoes: [],
         classes_cv_tempo: [],
-        classes_cv_comparacoes: []
+        classes_cv_comparacoes: [],
+        // Filtrado (sem outliers)
+        tempos_filt: [],
+        comparacoes_filt: [],
+        desvios_tempo_filt: [],
+        desvios_comparacoes_filt: [],
+        cvs_tempo_filt: [],
+        cvs_comparacoes_filt: [],
+        classes_cv_tempo_filt: [],
+        classes_cv_comparacoes_filt: []
       };
     }
 
@@ -129,6 +146,15 @@ function montarComparacaoGrandes() {
     mapaSeries.get(chave)[item.tamanho].cvs_comparacoes.push(Number(item.cv_comparacoes_pct || 0));
     mapaSeries.get(chave)[item.tamanho].classes_cv_tempo.push(item.classe_cv_tempo || '');
     mapaSeries.get(chave)[item.tamanho].classes_cv_comparacoes.push(item.classe_cv_comparacoes || '');
+    // Filtrado (sem outliers)
+    mapaSeries.get(chave)[item.tamanho].tempos_filt.push(Number(item.media_tempo_ms_filt));
+    mapaSeries.get(chave)[item.tamanho].comparacoes_filt.push(Number(item.media_comparacoes_filt));
+    mapaSeries.get(chave)[item.tamanho].desvios_tempo_filt.push(Number(item.desvio_tempo_ms_filt || 0));
+    mapaSeries.get(chave)[item.tamanho].desvios_comparacoes_filt.push(Number(item.desvio_comparacoes_filt || 0));
+    mapaSeries.get(chave)[item.tamanho].cvs_tempo_filt.push(Number(item.cv_tempo_pct_filt || 0));
+    mapaSeries.get(chave)[item.tamanho].cvs_comparacoes_filt.push(Number(item.cv_comparacoes_pct_filt || 0));
+    mapaSeries.get(chave)[item.tamanho].classes_cv_tempo_filt.push(item.classe_cv_tempo_filt || '');
+    mapaSeries.get(chave)[item.tamanho].classes_cv_comparacoes_filt.push(item.classe_cv_comparacoes_filt || '');
   }
 
   const coresBase = [
@@ -217,7 +243,120 @@ function montarComparacaoGrandes() {
                   desvio = media(extra.desvios) || 0;
                   cv = media(extra.cvs) || 0;
                   classe = extra.classes[0] || '';
-                  // Se houver múltiplos valores, usa o primeiro (já que por combinação única há um só)
+                }
+
+                let linha = `${ctx.dataset.label}: ${valor.toLocaleString('pt-BR', {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2
+                })}`;
+
+                if (desvio > 0 || cv > 0) {
+                  linha += ` (± ${desvio.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} | CV ${cv.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}% - ${classe})`;
+                }
+
+                return linha;
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            title: { display: true, text: 'Tamanho da entrada' }
+          },
+          yTempo: {
+            type: 'logarithmic',
+            position: 'left',
+            title: { display: true, text: 'Tempo (ms)' }
+          },
+          yComparacoes: {
+            type: 'logarithmic',
+            position: 'right',
+            title: { display: true, text: 'Comparações' },
+            grid: { drawOnChartArea: false }
+          }
+        }
+      }
+    }
+  );
+
+  // ===== GRÁFICO SEM OUTLIERS =====
+  let js = 0;
+  const datasetsFilt = [];
+
+  for (const [algoritmo, porTamanho] of mapaSeries.entries()) {
+    const cor = coresBase[js % coresBase.length];
+    const corEscura = escurecer(cor);
+
+    datasetsFilt.push({
+      label: `${algoritmo} (tempo) - Sem Outliers`,
+      data: tamanhos.map(t => media(porTamanho[t]?.tempos_filt || [])),
+      borderColor: cor,
+      yAxisID: 'yTempo',
+      tension: 0.25,
+      borderWidth: 3,
+      pointRadius: 4,
+      pointHoverRadius: 7,
+      _extra: tamanhos.map(t => ({
+        desvios: porTamanho[t]?.desvios_tempo_filt || [],
+        cvs: porTamanho[t]?.cvs_tempo_filt || [],
+        classes: porTamanho[t]?.classes_cv_tempo_filt || []
+      }))
+    });
+
+    datasetsFilt.push({
+      label: `${algoritmo} (comparações) - Sem Outliers`,
+      data: tamanhos.map(t => media(porTamanho[t]?.comparacoes_filt || [])),
+      borderColor: corEscura,
+      borderDash: [6, 4],
+      yAxisID: 'yComparacoes',
+      tension: 0.25,
+      borderWidth: 2,
+      pointRadius: 3,
+      pointHoverRadius: 6,
+      _extra: tamanhos.map(t => ({
+        desvios: porTamanho[t]?.desvios_comparacoes_filt || [],
+        cvs: porTamanho[t]?.cvs_comparacoes_filt || [],
+        classes: porTamanho[t]?.classes_cv_comparacoes_filt || []
+      }))
+    });
+
+    js++;
+  }
+
+  new Chart(
+    document.getElementById('graficoComparacaoSemOutliers'),
+    {
+      type: 'line',
+      data: {
+        labels: tamanhos,
+        datasets: datasetsFilt
+      },
+      options: {
+        responsive: true,
+        interaction: {
+          mode: 'index',
+          intersect: false
+        },
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: {
+              usePointStyle: true,
+              padding: 15,
+              font: { size: 12, weight: 'bold' }
+            }
+          },
+          tooltip: {
+            callbacks: {
+              label: function(ctx) {
+                const valor = Number(ctx.parsed.y);
+                const extra = ctx.dataset._extra?.[ctx.dataIndex];
+                let desvio = 0, cv = 0, classe = '';
+
+                if (extra) {
+                  desvio = media(extra.desvios) || 0;
+                  cv = media(extra.cvs) || 0;
+                  classe = extra.classes[0] || '';
                 }
 
                 let linha = `${ctx.dataset.label}: ${valor.toLocaleString('pt-BR', {
