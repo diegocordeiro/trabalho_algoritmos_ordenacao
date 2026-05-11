@@ -46,10 +46,36 @@
     </div>
 
     <!-- GRÁFICO SEM OUTLIERS -->
-    <div class="card">
+    <div class="card mb-4">
       <div class="card-body">
         <h3 class="h6">Tempo x Comparações - Sem Outliers (Escala Logarítmica)</h3>
         <canvas id="graficoComparacaoSemOutliers"></canvas>
+      </div>
+    </div>
+
+    <!-- TABELA SEM OUTLIERS -->
+    <div class="card">
+      <div class="card-body">
+        <h3 class="h6">Tabela de dados</h3>
+        <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
+          <table class="table table-striped table-sm table-hover mb-0">
+            <thead class="table-dark sticky-top">
+              <tr>
+                <th>Algoritmo</th>
+                <th>Condição</th>
+                <th>Tamanho</th>
+                <th>Média tempo (ms)</th>
+                <th>DP tempo (ms)</th>
+                <th>CV tempo (%)</th>
+                <th>Média comparações</th>
+                <th>DP comparações</th>
+                <th>CV comparações (%)</th>
+              </tr>
+            </thead>
+            <tbody id="tabelaSemOutliers"></tbody>
+          </table>
+        </div>
+        <div id="resumoTabela" class="small text-muted mt-2"></div>
       </div>
     </div>
 
@@ -70,6 +96,7 @@ const btnAtualizarComparacaoEl = document.getElementById('btnAtualizarComparacao
 
 let graficoComparacao = null;
 let graficoSemOutliers = null;
+let filtradosGlobal = [];
 
 /* =========================
    UTILITÁRIOS
@@ -106,6 +133,8 @@ function montarComparacaoGrandes() {
     item.tamanho >= tamanhoMinimo &&
     (condicao === '__todas__' || item.condicao === condicao)
   );
+
+  filtradosGlobal = filtrados;
 
   const tamanhos = [...new Set(filtrados.map(i => i.tamanho))]
     .sort((a, b) => a - b);
@@ -404,6 +433,55 @@ function montarComparacaoGrandes() {
     `${filtrados.length} pontos | ${mapaSeries.size} algoritmos | ` +
     `Tempo total: ${totalTempo.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} ms | ` +
     `Comparações totais: ${totalComparacoes.toLocaleString('pt-BR')}`;
+
+  montarTabelaSemOutliers();
+}
+
+/* =========================
+   TABELA SEM OUTLIERS
+========================= */
+function montarTabelaSemOutliers() {
+  const tbody = document.getElementById('tabelaSemOutliers');
+  const resumoEl = document.getElementById('resumoTabela');
+
+  if (!filtradosGlobal.length) {
+    tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">Nenhum dado disponível com os filtros atuais.</td></tr>';
+    resumoEl.textContent = '';
+    return;
+  }
+
+  // Ordenar por algoritmo, depois condicao, depois tamanho
+  const ordenados = [...filtradosGlobal].sort((a, b) => {
+    if (a.algoritmo !== b.algoritmo) return a.algoritmo.localeCompare(b.algoritmo);
+    if (a.condicao !== b.condicao) return a.condicao.localeCompare(b.condicao);
+    return a.tamanho - b.tamanho;
+  });
+
+  const fmt = (val, decimais = 2) =>
+    val != null
+      ? Number(val).toLocaleString('pt-BR', {
+          minimumFractionDigits: decimais,
+          maximumFractionDigits: decimais
+        })
+      : '-';
+
+  let html = '';
+  for (const item of ordenados) {
+    html += '<tr>';
+    html += `<td><strong>${item.algoritmo}</strong></td>`;
+    html += `<td>${item.condicao}</td>`;
+    html += `<td>${Number(item.tamanho).toLocaleString('pt-BR')}</td>`;
+    html += `<td>${fmt(item.media_tempo_ms_filt)}</td>`;
+    html += `<td>${fmt(item.desvio_tempo_ms_filt)}</td>`;
+    html += `<td>${fmt(item.cv_tempo_pct_filt)}</td>`;
+    html += `<td>${fmt(item.media_comparacoes_filt, 0)}</td>`;
+    html += `<td>${fmt(item.desvio_comparacoes_filt, 0)}</td>`;
+    html += `<td>${fmt(item.cv_comparacoes_pct_filt)}</td>`;
+    html += '</tr>';
+  }
+
+  tbody.innerHTML = html;
+  resumoEl.textContent = `${ordenados.length} linhas exibidas (dados sem outliers)`;
 }
 
 btnAtualizarComparacaoEl.addEventListener('click', montarComparacaoGrandes);
