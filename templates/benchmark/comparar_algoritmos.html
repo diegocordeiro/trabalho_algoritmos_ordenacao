@@ -68,8 +68,6 @@
                 <th>DP tempo (ms)</th>
                 <th>CV tempo (%)</th>
                 <th>Média comparações</th>
-                <th>DP comparações</th>
-                <th>CV comparações (%)</th>
               </tr>
             </thead>
             <tbody id="tabelaSemOutliers"></tbody>
@@ -226,6 +224,7 @@ function montarComparacaoGrandes() {
       borderWidth: 2,
       pointRadius: 3,
       pointHoverRadius: 6,
+      _isComparacoes: true,
       // Metadados por ponto para tooltip (desvio, cv, classe)
       _extra: tamanhos.map(t => ({
         desvios: porTamanho[t]?.desvios_comparacoes || [],
@@ -280,8 +279,10 @@ function montarComparacaoGrandes() {
                   maximumFractionDigits: 2
                 })}`;
 
-                if (desvio > 0 || cv > 0) {
-                  linha += ` (± ${desvio.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} | CV ${cv.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}% - ${classe})`;
+                if (!ctx.dataset._isComparacoes) {
+                  if (desvio > 0 || cv > 0) {
+                    linha += ` (± ${desvio.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} | CV ${cv.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}% - ${classe})`;
+                  }
                 }
 
                 return linha;
@@ -343,6 +344,7 @@ function montarComparacaoGrandes() {
       borderWidth: 2,
       pointRadius: 3,
       pointHoverRadius: 6,
+      _isComparacoes: true,
       _extra: tamanhos.map(t => ({
         desvios: porTamanho[t]?.desvios_comparacoes_filt || [],
         cvs: porTamanho[t]?.cvs_comparacoes_filt || [],
@@ -396,8 +398,10 @@ function montarComparacaoGrandes() {
                   maximumFractionDigits: 2
                 })}`;
 
-                if (desvio > 0 || cv > 0) {
-                  linha += ` (± ${desvio.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} | CV ${cv.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}% - ${classe})`;
+                if (!ctx.dataset._isComparacoes) {
+                  if (desvio > 0 || cv > 0) {
+                    linha += ` (± ${desvio.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} | CV ${cv.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}% - ${classe})`;
+                  }
                 }
 
                 return linha;
@@ -445,7 +449,7 @@ function montarTabelaSemOutliers() {
   const resumoEl = document.getElementById('resumoTabela');
 
   if (!filtradosGlobal.length) {
-    tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">Nenhum dado disponível com os filtros atuais.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">Nenhum dado disponível com os filtros atuais.</td></tr>';
     resumoEl.textContent = '';
     return;
   }
@@ -475,8 +479,6 @@ function montarTabelaSemOutliers() {
     html += `<td>${fmt(item.desvio_tempo_ms_filt)}</td>`;
     html += `<td>${fmt(item.cv_tempo_pct_filt)}</td>`;
     html += `<td>${fmt(item.media_comparacoes_filt, 0)}</td>`;
-    html += `<td>${fmt(item.desvio_comparacoes_filt, 0)}</td>`;
-    html += `<td>${fmt(item.cv_comparacoes_pct_filt)}</td>`;
     html += '</tr>';
   }
 

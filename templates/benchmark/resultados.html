@@ -27,8 +27,6 @@
             <th>Desvio padrão tempo (ms)</th>
             <th>CV tempo (s/ outliers)</th>
             <th>Média comparações</th>
-            <th>Desvio padrão comparações</th>
-            <th>CV comparações (s/ outliers)</th>
           </tr>
         </thead>
         <tbody>
@@ -41,8 +39,6 @@
             <td>±{{ m.desvio_tempo_ms|floatformat:2|intcomma }}</td>
             <td>{{ m.cv_tempo_pct_filt|floatformat:2 }}% ({{ m.classe_cv_tempo_filt }})</td>
             <td>{{ m.media_comparacoes|floatformat:2|intcomma }}</td>
-            <td>±{{ m.desvio_comparacoes|floatformat:2|intcomma }}</td>
-            <td>{{ m.cv_comparacoes_pct_filt|floatformat:2 }}% ({{ m.classe_cv_comparacoes_filt }})</td>
           </tr>
           {% endfor %}
         </tbody>
@@ -258,11 +254,8 @@ document.addEventListener('DOMContentLoaded', function () {
             label: (ctx) => {
               const i = ctx.dataIndex;
               const media = dataComparacoes[i];
-              const desvio = desviosComparacoes[i];
-              const perc = percentual(desvio, media);
-              const classe = (perc <= 10) ? 'Muito Baixa Variação' : (perc <= 20 ? 'Moderada Variação' : (perc <= 30 ? 'Alta Variação' : 'Variação Muito Alta'));
 
-              return `Média: ${format(media)} (± ${format(desvio)} | CV ${format(perc)}% - ${classe})`;
+              return `Média: ${format(media)}`;
             }
           }
         }
@@ -346,11 +339,8 @@ document.addEventListener('DOMContentLoaded', function () {
             label: (ctx) => {
               const i = ctx.dataIndex;
               const media_filt = dataComparacoesFilt[i];
-              const desvio_filt = desviosComparacoesFilt[i];
-              const perc = percentual(desvio_filt, media_filt);
-              const classe = (perc <= 10) ? 'Muito Baixa Variação' : (perc <= 20 ? 'Moderada Variação' : (perc <= 30 ? 'Alta Variação' : 'Variação Muito Alta'));
 
-              return `Média (s/ outliers): ${format(media_filt)} (± ${format(desvio_filt)} | CV ${format(perc)}% - ${classe})`;
+              return `Média (s/ outliers): ${format(media_filt)}`;
             }
           }
         }
