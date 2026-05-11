@@ -69,6 +69,7 @@ const resumoComparacaoEl = document.getElementById('resumoComparacao');
 const btnAtualizarComparacaoEl = document.getElementById('btnAtualizarComparacao');
 
 let graficoComparacao = null;
+let graficoSemOutliers = null;
 
 /* =========================
    UTILITÁRIOS
@@ -323,7 +324,9 @@ function montarComparacaoGrandes() {
     js++;
   }
 
-  new Chart(
+  if (graficoSemOutliers) graficoSemOutliers.destroy();
+
+  graficoSemOutliers = new Chart(
     document.getElementById('graficoComparacaoSemOutliers'),
     {
       type: 'line',
