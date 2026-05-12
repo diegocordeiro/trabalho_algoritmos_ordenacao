@@ -6,6 +6,7 @@ ALGORITMOS_DISPONIVEIS = [
     ('mergesort', 'MergeSort'),
     ('heap', 'HeapSort'),
     ('quicksort', 'QuickSort'),
+    ('hibrido', 'Híbrido'),
 ]
 
 CONDICOES_DISPONIVEIS = [
@@ -14,7 +15,7 @@ CONDICOES_DISPONIVEIS = [
     ('aleatorio', 'Aleatorio'),
 ]
 
-TAMANHOS_OBRIGATORIOS = [100, 500, 1000, 5000, 30000, 50000, 100000, 150000, 200000]
+TAMANHOS_OBRIGATORIOS = [50, 100, 500, 1000, 5000, 30000, 50000, 100000, 150000, 200000]
 
 
 class ConfiguracaoBenchmarkForm(forms.Form):
