@@ -1,7 +1,7 @@
 from django.core.management.base import BaseCommand
 
 from benchmark.models import ExecucaoBenchmark
-from benchmark.services import executar_benchmark
+from benchmark.services import executar_benchmark, gerar_csv_resultados_arquivo
 
 
 class Command(BaseCommand):
@@ -31,4 +31,9 @@ class Command(BaseCommand):
         )
         executar_benchmark(execucao.id)
         execucao.refresh_from_db()
+
+        if execucao.status == 'concluido':
+            caminho_csv = gerar_csv_resultados_arquivo(execucao.id)
+            self.stdout.write(self.style.SUCCESS(f'CSV gerado em: {caminho_csv}'))
+
         self.stdout.write(self.style.SUCCESS(f'Execucao {execucao.id} finalizada com status: {execucao.status}'))
