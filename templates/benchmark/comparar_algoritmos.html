@@ -34,6 +34,9 @@
       <button id="btnAtualizarComparacao" class="btn btn-outline-primary btn-sm">
         Atualizar comparação
       </button>
+      <button id="btnToggleTodos" class="btn btn-outline-secondary btn-sm">
+        Desativar todos
+      </button>
       <span id="resumoComparacao" class="small text-muted align-self-center"></span>
     </div>
 
@@ -487,6 +490,29 @@ function montarTabelaSemOutliers() {
 }
 
 btnAtualizarComparacaoEl.addEventListener('click', montarComparacaoGrandes);
+
+/* =========================
+   TOGGLE TODOS OS ALGORITMOS
+========================= */
+let todosVisiveis = true;
+const btnToggleTodosEl = document.getElementById('btnToggleTodos');
+
+function toggleTodosAlgoritmos() {
+  todosVisiveis = !todosVisiveis;
+
+  [graficoComparacao, graficoSemOutliers].forEach(chart => {
+    if (!chart) return;
+    for (let i = 0; i < chart.data.datasets.length; i++) {
+      chart.setDatasetVisibility(i, todosVisiveis);
+    }
+    chart.update();
+  });
+
+  btnToggleTodosEl.textContent = todosVisiveis ? 'Desativar todos' : 'Ativar todos';
+}
+
+btnToggleTodosEl.addEventListener('click', toggleTodosAlgoritmos);
+
 montarComparacaoGrandes();
 </script>
 
