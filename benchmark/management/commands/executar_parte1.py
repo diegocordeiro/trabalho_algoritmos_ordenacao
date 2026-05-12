@@ -12,7 +12,7 @@ class Command(BaseCommand):
         parser.add_argument('--condicoes', default='crescente,decrescente,aleatorio')
         parser.add_argument('--tamanhos', default='500')
         parser.add_argument('--repeticoes', type=int, default=3)
-        parser.add_argument('--nome', default='Execucao CLI Parte I')
+        parser.add_argument('--nome', default='Execucao Parte I')
         parser.add_argument('--vetor-personalizado', default='')
 
     def handle(self, *args, **options):
