@@ -7,6 +7,9 @@ ALGORITMOS_DISPONIVEIS = [
     ('heap', 'HeapSort'),
     ('quicksort', 'QuickSort'),
     ('hibrido', 'Híbrido'),
+    ('hibrido2', 'Híbrido 2'),
+    ('hibrido3', 'Híbrido 3'),
+    ('hibrido4', 'Híbrido 4'),
 ]
 
 CONDICOES_DISPONIVEIS = [
