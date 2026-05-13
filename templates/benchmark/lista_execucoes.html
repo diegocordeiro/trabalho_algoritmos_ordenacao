@@ -70,6 +70,16 @@
           <option value="false">Não</option>
         </select>
       </div>
+
+      <div class="col-md-3">
+        <label for="filtro-repeticoes" class="form-label">Filtrar por repetições</label>
+        <input
+          type="text"
+          id="filtro-repeticoes"
+          class="form-control"
+          placeholder="Ex.: 3"
+        >
+      </div>
     </div>
   </div>
 </div>
@@ -102,6 +112,7 @@
             data-algoritmos="{{ e.algoritmos|join:', '|lower }}"
             data-tamanhos="{{ e.tamanhos|join:', '|lower }}"
             data-permitir-repetidos="{{ e.permitir_repetidos|lower }}"
+            data-repeticoes="{{ e.repeticoes }}"
           >
             <td>
               <input
@@ -151,7 +162,7 @@
           </tr>
           {% empty %}
           <tr id="linha-vazia">
-            <td colspan="9" class="text-center py-4 text-muted">Nenhuma execução cadastrada até o momento.</td>
+            <td colspan="11" class="text-center py-4 text-muted">Nenhuma execução cadastrada até o momento.</td>
           </tr>
           {% endfor %}
         </tbody>
@@ -170,6 +181,7 @@
     const filtroAlgoritmo = document.getElementById('filtro-algoritmo');
     const filtroTamanho = document.getElementById('filtro-tamanho');
     const filtroRepetidos = document.getElementById('filtro-repetidos');
+    const filtroRepeticoes = document.getElementById('filtro-repeticoes');
     const tabela = document.getElementById('tabela-execucoes');
     const linhas = tabela.querySelectorAll('tbody tr');
     const semResultados = document.getElementById('sem-resultados');
@@ -190,6 +202,7 @@
       const algoritmoDigitado = filtroAlgoritmo.value.trim().toLowerCase();
       const tamanhoDigitado = filtroTamanho.value.trim().toLowerCase();
       const repetidosSelecionado = filtroRepetidos.value.trim().toLowerCase();
+      const repeticoesDigitado = filtroRepeticoes.value.trim().toLowerCase();
 
       let algumaLinhaVisivel = false;
 
@@ -200,13 +213,15 @@
         const algoritmos = (linha.dataset.algoritmos || '').toLowerCase();
         const tamanhos = (linha.dataset.tamanhos || '').toLowerCase();
         const permitirRepetidos = (linha.dataset.permitirRepetidos || '').toLowerCase();
+        const repeticoes = (linha.dataset.repeticoes || '').toLowerCase();
 
         const bateStatus = !statusSelecionado || status === statusSelecionado;
         const bateAlgoritmo = !algoritmoDigitado || algoritmos.includes(algoritmoDigitado);
         const bateTamanho = !tamanhoDigitado || tamanhos.includes(tamanhoDigitado);
         const bateRepetidos = !repetidosSelecionado || permitirRepetidos === repetidosSelecionado;
+        const bateRepeticoes = !repeticoesDigitado || repeticoes === repeticoesDigitado;
 
-        const visivel = bateStatus && bateAlgoritmo && bateTamanho && bateRepetidos;
+        const visivel = bateStatus && bateAlgoritmo && bateTamanho && bateRepetidos && bateRepeticoes;
         linha.style.display = visivel ? '' : 'none';
 
         if (visivel) algumaLinhaVisivel = true;
@@ -291,6 +306,7 @@
     filtroAlgoritmo.addEventListener('input', aplicarFiltros);
     filtroTamanho.addEventListener('input', aplicarFiltros);
     filtroRepetidos.addEventListener('change', aplicarFiltros);
+    filtroRepeticoes.addEventListener('input', aplicarFiltros);
 
     aplicarFiltros();
     atualizarSelecionarTodos();
