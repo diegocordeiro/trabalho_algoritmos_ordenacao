@@ -1,7 +1,7 @@
-# Trabalho Prático de Projeto e Análise de Algoritmos: Implementação e Comparação de Algoritmos de Ordenação
+# Implementação e Comparação de Algoritmos de Ordenação
 
 - Projeto Django para execução e comparação de algoritmos de ordenação.
-- Disciplina Projeto e Análise de Algoritmos.
+- Disciplina: Projeto e Análise de Algoritmos.
 - Integrantes: Arthur Fernando Elvas Bohn, Diego Cordeiro de Oliveira e Keoma de Sousa Coelho.
 - Orientador: Professor Dr. Guilherme Amaral Avelino.
 
