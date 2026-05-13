@@ -10,6 +10,7 @@ ALGORITMOS_DISPONIVEIS = [
     ('hibrido2', 'Híbrido 2'),
     ('hibrido3', 'Híbrido 3'),
     ('hibrido4', 'Híbrido 4'),
+    ('hibrido5', 'Híbrido 5'),
 ]
 
 CONDICOES_DISPONIVEIS = [
