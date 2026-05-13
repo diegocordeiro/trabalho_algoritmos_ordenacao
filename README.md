@@ -12,7 +12,15 @@
 
 ## Como rodar (configuração de ambiente)
 
-**Instale o virtualenv** (caso o comando `python3 -m venv` não funcione):
+No terminal execute a sequencia a seguir:
+
+**1. Clone o repositório:**
+```bash
+git clone https://github.com/diegocordeiro/trabalho_algoritmos_ordenacao.git
+cd trabalho_algoritmos_ordenacao
+```
+
+**2. Instale o virtualenv** (caso o comando `python3 -m venv` não funcione):
 
 ```bash
 # Ubuntu/Debian
@@ -22,7 +30,7 @@ sudo apt install python3-venv
 brew install python3
 ```
 
-Em seguida:
+**3. Em seguida**, ainda dentro da pasta do projeto:
 
 ```bash
 python3 -m venv .venv
