@@ -67,7 +67,7 @@ Caso queira customizar a execução, os seguintes parâmetros podem ser alterado
 ### Exemplo com parâmetros personalizados
 
 ```bash
-.venv/bin/python manage.py executar_parte1 --algoritmos mergesort,quicksort --tamanhos 1000,5000 --repeticoes 5 --nome "Comparar Merge Sort com Quick Sort"
+.venv/bin/python manage.py executar_parte1 --algoritmos mergesort,quicksort --tamanhos 1000,5000 --repeticoes 5 --permitir-repetidos --nome "Comparar Merge Sort com Quick Sort"
 ```
 
 ## Execução via interface web
