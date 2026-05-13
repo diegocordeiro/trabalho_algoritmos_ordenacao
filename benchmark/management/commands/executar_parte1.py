@@ -19,7 +19,15 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         nomes_algoritmos = [item.strip() for item in options['algoritmos'].split(',') if item.strip()]
         condicoes = [item.strip() for item in options['condicoes'].split(',') if item.strip()]
-        tamanhos = [int(item.strip()) for item in options['tamanhos'].split(',') if item.strip()]
+        vetor_personalizado = options['vetor_personalizado'].strip()
+        permitir_repetidos = options['permitir_repetidos']
+
+        if vetor_personalizado:
+            vetor_parsed = [int(x.strip()) for x in vetor_personalizado.split(',') if x.strip()]
+            tamanhos = [len(vetor_parsed)]
+            permitir_repetidos = len(vetor_parsed) != len(set(vetor_parsed))
+        else:
+            tamanhos = [int(item.strip()) for item in options['tamanhos'].split(',') if item.strip()]
 
         for algoritmo in nomes_algoritmos:
             for tamanho in tamanhos:
@@ -30,7 +38,7 @@ class Command(BaseCommand):
                     tamanhos=[tamanho],
                     repeticoes=options['repeticoes'],
                     vetor_personalizado=options['vetor_personalizado'],
-                    permitir_repetidos=options['permitir_repetidos'],
+                    permitir_repetidos=permitir_repetidos,
                     status='pendente',
                     progresso_texto='Iniciando...',
                 )
