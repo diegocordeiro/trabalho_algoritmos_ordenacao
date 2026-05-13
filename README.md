@@ -83,6 +83,8 @@ Esse worker processa execuções com `status=pendente` em ordem de criação, um
 
 ## Módulos
 
-- `ordenacao`: algoritmos de ordenação
-- `benchmark`: configuração, execução assíncrona e persistência
-- `relatorios`: exportação CSV
+- **`ordenacao`**: Implementa os 5 algoritmos de ordenação clássicos — Bubble Sort, Insertion Sort, Merge Sort, Heap Sort e Quick Sort — conforme descritos no livro *Algoritmo Teoria e Prática* (Cormen et al., 2012, 3ª edição), um por arquivo como solicitado na especificação do problema. A pasta **`algoritmos`** armazena os arquivos individuais. Cada algoritmo retorna o vetor ordenado e a contagem de comparações realizadas durante a execução.
+
+- **`benchmark`**: Responsável por orquestrar as execuções de benchmark. Permite configurar quais algoritmos, condições do vetor de entrada (crescente, decrescente, aleatório), tamanhos de entrada e número de repetições serão utilizados. A execução é gerenciada via fila no banco de dados com processamento por um worker serial (uma execução por vez). Após a conclusão, calcula métricas estatísticas (médias, desvio padrão, coeficiente de variação), aplica filtragem de outliers e prepara os dados para visualização em gráficos comparativos na interface web.
+
+- **`relatorios`**: Responsável pela exportação dos resultados. Gera arquivos CSV com estatísticas filtradas (após remoção de outliers) contendo tempo médio, desvio padrão, coeficiente de variação, classe de variabilidade e contagem de comparações para cada combinação de algoritmo, condição e tamanho. Suporta exportação de uma única execução ou de múltiplas execuções selecionadas pelo usuário.
