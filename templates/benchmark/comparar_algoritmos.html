@@ -17,18 +17,23 @@
       Comparação direta entre algoritmos considerando tempo de execução e quantidade de comparações.
     </p>
 
-    <!-- FILTROS -->
-    <div class="row g-3 mb-3">
-      <div class="col-md-4">
-        <label class="form-label">Tamanho mínimo</label>
-        <input id="filtroTamanhoMinimo" type="number" class="form-control" value="100" min="1">
-      </div>
+     <!-- FILTROS -->
+     <div class="row g-3 mb-3">
+       <div class="col-md-3">
+         <label class="form-label">Tamanho mínimo</label>
+         <input id="filtroTamanhoMinimo" type="number" class="form-control" value="100" min="1">
+       </div>
 
-      <div class="col-md-8">
-        <label class="form-label">Condição</label>
-        <select id="filtroCondicao" class="form-select"></select>
-      </div>
-    </div>
+       <div class="col-md-3">
+         <label class="form-label">Tamanho máximo</label>
+         <input id="filtroTamanhoMaximo" type="number" class="form-control" placeholder="Sem limite" min="1">
+       </div>
+
+       <div class="col-md-6">
+         <label class="form-label">Condição</label>
+         <select id="filtroCondicao" class="form-select"></select>
+       </div>
+     </div>
 
     <div class="d-flex gap-2 mb-3">
       <button id="btnAtualizarComparacao" class="btn btn-outline-primary btn-sm">
@@ -92,6 +97,7 @@ const mediasBase = JSON.parse(document.getElementById('dados-medias').textConten
 
 const filtroCondicaoEl = document.getElementById('filtroCondicao');
 const filtroTamanhoMinimoEl = document.getElementById('filtroTamanhoMinimo');
+const filtroTamanhoMaximoEl = document.getElementById('filtroTamanhoMaximo');
 const resumoComparacaoEl = document.getElementById('resumoComparacao');
 const btnAtualizarComparacaoEl = document.getElementById('btnAtualizarComparacao');
 
@@ -128,12 +134,16 @@ filtroCondicaoEl.innerHTML =
 ========================= */
 function montarComparacaoGrandes() {
   const tamanhoMinimo = Number(filtroTamanhoMinimoEl.value || 1);
+  const tamanhoMaximoRaw = filtroTamanhoMaximoEl.value.trim();
+  const tamanhoMaximo = tamanhoMaximoRaw !== '' ? Number(tamanhoMaximoRaw) : null;
   const condicao = filtroCondicaoEl.value;
 
-  const filtrados = mediasBase.filter(item =>
-    item.tamanho >= tamanhoMinimo &&
-    (condicao === '__todas__' || item.condicao === condicao)
-  );
+  const filtrados = mediasBase.filter(item => {
+    if (item.tamanho < tamanhoMinimo) return false;
+    if (tamanhoMaximo !== null && item.tamanho > tamanhoMaximo) return false;
+    if (condicao !== '__todas__' && item.condicao !== condicao) return false;
+    return true;
+  });
 
   filtradosGlobal = filtrados;
 
