@@ -1,8 +1,12 @@
+import csv
+import os
 import random
 import time
 import statistics
 import math
 from collections import defaultdict
+
+from django.conf import settings
 
 from benchmark.models import ExecucaoBenchmark, ResultadoExecucao
 from ordenacao.algoritmos import ALGORITMOS
@@ -337,3 +341,38 @@ def dados_grafico(execucao):
         estrutura[chave]['desvio_comparacoes_filt'].append(round(item['desvio_comparacoes_filt'], 2))
     # Retorna estrutura final para consumo dos graficos na view.
     return estrutura
+
+
+def gerar_csv_resultados_arquivo(execucao_id):
+    """
+    Gera um arquivo CSV com os dados detalhados da execucao
+    (algoritmo, condicao, tamanho, rodada, tempo_ms, comparacoes)
+    e salva na pasta resultados/.
+    Retorna o caminho do arquivo gerado.
+    """
+    resultados = ResultadoExecucao.objects.filter(execucao_id=execucao_id).order_by(
+        'algoritmo', 'condicao', 'tamanho', 'rodada'
+    )
+
+    # Garante que o diretorio resultados/ existe
+    base_dir = os.path.join(settings.BASE_DIR, 'resultados')
+    os.makedirs(base_dir, exist_ok=True)
+
+    nome_arquivo = f'execucao_{execucao_id}.csv'
+    caminho_arquivo = os.path.join(base_dir, nome_arquivo)
+
+    with open(caminho_arquivo, 'w', newline='', encoding='utf-8') as f:
+        writer = csv.writer(f)
+        writer.writerow(['algoritmo', 'condicao', 'tamanho', 'rodada', 'tempo_ms', 'comparacoes'])
+
+        for r in resultados:
+            writer.writerow([
+                r.algoritmo,
+                r.condicao,
+                r.tamanho,
+                r.rodada,
+                f'{r.tempo_ms:.2f}',
+                f'{r.comparacoes:.2f}',
+            ])
+
+    return caminho_arquivo
