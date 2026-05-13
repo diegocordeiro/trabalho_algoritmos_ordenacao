@@ -54,6 +54,12 @@
         <div class="form-text">Se preenchido, este vetor será usado no lugar da geração automática.</div>
       </div>
 
+      <div class="mt-4 form-check">
+        {{ form.permitir_repetidos }}
+        <label class="form-check-label fw-semibold" for="{{ form.permitir_repetidos.id_for_label }}">Permitir números repetidos nos vetores gerados automaticamente</label>
+        <div class="form-text">Quando marcado, os vetores poderão conter elementos duplicados. Default: vetores sem repetição.</div>
+      </div>
+
       {% if form.errors %}
       <div class="alert alert-danger mt-3 mb-0">
         Verifique os campos obrigatórios e tente novamente.

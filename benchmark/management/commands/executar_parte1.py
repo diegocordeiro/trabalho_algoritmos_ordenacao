@@ -14,6 +14,7 @@ class Command(BaseCommand):
         parser.add_argument('--repeticoes', type=int, default=3)
         parser.add_argument('--nome', default='')
         parser.add_argument('--vetor-personalizado', default='')
+        parser.add_argument('--permitir-repetidos', action='store_true', default=False)
 
     def handle(self, *args, **options):
         nomes_algoritmos = [item.strip() for item in options['algoritmos'].split(',') if item.strip()]
@@ -21,28 +22,30 @@ class Command(BaseCommand):
         tamanhos = [int(item.strip()) for item in options['tamanhos'].split(',') if item.strip()]
 
         for algoritmo in nomes_algoritmos:
-            execucao = ExecucaoBenchmark.objects.create(
-                nome=f"{algoritmo} :: Tamanho {options['tamanhos']}".strip(),
-                algoritmos=[algoritmo],
-                condicoes=condicoes,
-                tamanhos=tamanhos,
-                repeticoes=options['repeticoes'],
-                vetor_personalizado=options['vetor_personalizado'],
-                status='pendente',
-                progresso_texto='Iniciando...',
-            )
+            for tamanho in tamanhos:
+                execucao = ExecucaoBenchmark.objects.create(
+                    nome=f"{algoritmo} :: Tamanho {tamanho}".strip(),
+                    algoritmos=[algoritmo],
+                    condicoes=condicoes,
+                    tamanhos=[tamanho],
+                    repeticoes=options['repeticoes'],
+                    vetor_personalizado=options['vetor_personalizado'],
+                    permitir_repetidos=options['permitir_repetidos'],
+                    status='pendente',
+                    progresso_texto='Iniciando...',
+                )
 
-            self.stdout.write(f'[{algoritmo}] Execução #{execucao.id} iniciada...')
+                self.stdout.write(f'[{algoritmo}][t={tamanho}] Execução #{execucao.id} iniciada...')
 
-            executar_benchmark(execucao.id)
-            execucao.refresh_from_db()
+                executar_benchmark(execucao.id)
+                execucao.refresh_from_db()
 
-            if execucao.status == 'concluido':
-                caminho_csv = gerar_csv_resultados_arquivo(execucao.id)
-                self.stdout.write(self.style.SUCCESS(f'[{algoritmo}] CSV gerado em: {caminho_csv}'))
-            else:
-                self.stdout.write(self.style.ERROR(f'[{algoritmo}] Falhou com status: {execucao.status}'))
+                if execucao.status == 'concluido':
+                    caminho_csv = gerar_csv_resultados_arquivo(execucao.id)
+                    self.stdout.write(self.style.SUCCESS(f'[{algoritmo}][t={tamanho}] CSV gerado em: {caminho_csv}'))
+                else:
+                    self.stdout.write(self.style.ERROR(f'[{algoritmo}][t={tamanho}] Falhou com status: {execucao.status}'))
 
-            self.stdout.write(f'[{algoritmo}] Execução #{execucao.id} finalizada: {execucao.status}')
+                self.stdout.write(f'[{algoritmo}][t={tamanho}] Execução #{execucao.id} finalizada: {execucao.status}')
 
-        self.stdout.write(self.style.SUCCESS(f'{len(nomes_algoritmos)} execuções concluídas.'))
+        self.stdout.write(self.style.SUCCESS(f'{len(nomes_algoritmos) * len(tamanhos)} execuções concluídas.'))

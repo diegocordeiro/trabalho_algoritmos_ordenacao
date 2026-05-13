@@ -49,6 +49,12 @@ class ConfiguracaoBenchmarkForm(forms.Form):
             }
         )
     )
+    permitir_repetidos = forms.BooleanField(
+        required=False,
+        initial=False,
+        label='Permitir números repetidos nos vetores',
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+    )
 
     def clean_condicoes(self):
         condicoes = self.cleaned_data['condicoes']

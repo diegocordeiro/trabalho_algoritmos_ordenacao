@@ -15,6 +15,7 @@ class ExecucaoBenchmark(models.Model):
     tamanhos = models.JSONField(default=list)
     repeticoes = models.PositiveIntegerField(default=3)
     vetor_personalizado = models.TextField(blank=True, default='')
+    permitir_repetidos = models.BooleanField(default=False)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pendente')
     progresso_texto = models.TextField(blank=True, default='Aguardando inicio...')
     criado_em = models.DateTimeField(auto_now_add=True)

@@ -61,6 +61,7 @@ Caso queira customizar a execução, os seguintes parâmetros podem ser alterado
 | `--tamanhos` | `500` | Tamanhos dos vetores, separados por vírgula |
 | `--repeticoes` | `3` | Número de repetições por combinação |
 | `--nome` | `Execucao Parte I` | Nome descritivo da execução |
+| `--permitir-repetidos` | `False` (flag) | Permite que os vetores gerados automaticamente (crescente, decrescente e aleatório) contenham números repetidos. Quando ausente, os vetores são gerados sem elementos repetidos. |
 | `--vetor-personalizado` | (vazio) | Vetor personalizado com números separados por vírgula |
 
 ### Exemplo com parâmetros personalizados

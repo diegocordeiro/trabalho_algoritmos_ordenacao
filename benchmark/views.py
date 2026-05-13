@@ -23,6 +23,7 @@ def pagina_inicial(request):
                 tamanhos=[int(form.cleaned_data['tamanho'])],
                 repeticoes=form.cleaned_data['repeticoes'],
                 vetor_personalizado=form.cleaned_data['vetor_personalizado'],
+                permitir_repetidos=form.cleaned_data.get('permitir_repetidos', False),
             )
             iniciar_execucao_assincrona(execucao.id)
             return redirect('benchmark:acompanhar_execucao', execucao_id=execucao.id)
@@ -40,6 +41,14 @@ def listar_execucoes(request):
 def excluir_execucao(request, execucao_id):
     execucao = get_object_or_404(ExecucaoBenchmark, id=execucao_id)
     execucao.delete()
+    return redirect('benchmark:listar_execucoes')
+
+
+@require_POST
+def excluir_multiplas_execucoes(request):
+    ids = request.POST.getlist('execucoes')
+    if ids:
+        ExecucaoBenchmark.objects.filter(id__in=ids).delete()
     return redirect('benchmark:listar_execucoes')
 
 
@@ -74,16 +83,16 @@ def resultados_execucao(request, execucao_id):
 
 def comparar_algoritmos(request):
 
-    resultados = ResultadoExecucao.objects.all().order_by('algoritmo', 'condicao', 'tamanho')
+    resultados = ResultadoExecucao.objects.select_related('execucao').all().order_by('algoritmo', 'condicao', 'tamanho')
 
     grupos = defaultdict(list)
 
     for r in resultados:
-        chave = (r.algoritmo, r.condicao, r.tamanho)
+        chave = (r.algoritmo, r.condicao, r.tamanho, r.execucao.repeticoes)
         grupos[chave].append(r)
 
     medias = []
-    for (algoritmo, condicao, tamanho), itens in grupos.items():
+    for (algoritmo, condicao, tamanho, _rep), itens in grupos.items():
         tempos = [r.tempo_ms for r in itens]
         comparacoes = [r.comparacoes for r in itens]
 
@@ -156,10 +165,16 @@ def comparar_algoritmos(request):
         n_filtrado_tempo = len(tempos_filtrados) if removeu_tempo else n_original
         n_filtrado_comp = len(comps_filtrados) if removeu_comp else n_original
 
+        amostra = itens[0]
+        permitir_repetidos = amostra.execucao.permitir_repetidos
+        repeticoes = amostra.execucao.repeticoes
+
         medias.append({
             'algoritmo': algoritmo,
             'condicao': condicao,
             'tamanho': tamanho,
+            'repeticoes': repeticoes,
+            'permitir_repetidos': permitir_repetidos,
             # Original
             'media_tempo_ms': media_tempo,
             'desvio_tempo_ms': desvio_tempo,
@@ -184,6 +199,9 @@ def comparar_algoritmos(request):
             'removeu_outliers_comp': removeu_comp,
         })
 
+    repeticoes_disponiveis = sorted(set(m['repeticoes'] for m in medias))
+
     return render(request, 'benchmark/comparar_algoritmos.html', {
-        'medias_json': medias
+        'medias_json': medias,
+        'repeticoes_disponiveis': repeticoes_disponiveis,
     })

@@ -19,21 +19,37 @@
 
      <!-- FILTROS -->
      <div class="row g-3 mb-3">
-       <div class="col-md-3">
+       <div class="col-md-2">
          <label class="form-label">Tamanho mínimo</label>
          <input id="filtroTamanhoMinimo" type="number" class="form-control" value="100" min="1">
        </div>
 
-       <div class="col-md-3">
+       <div class="col-md-2">
          <label class="form-label">Tamanho máximo</label>
          <input id="filtroTamanhoMaximo" type="number" class="form-control" placeholder="Sem limite" min="1">
        </div>
 
-       <div class="col-md-6">
-         <label class="form-label">Condição</label>
-         <select id="filtroCondicao" class="form-select"></select>
-       </div>
-     </div>
+         <div class="col-md-2">
+           <label class="form-label">Repetições</label>
+           <select id="filtroRepeticoes" class="form-select">
+             <option value="__todas__">Todas as repetições</option>
+           </select>
+         </div>
+
+         <div class="col-md-2">
+           <label class="form-label">Condição</label>
+           <select id="filtroCondicao" class="form-select"></select>
+         </div>
+
+        <div class="col-md-3">
+          <label class="form-label">Vetor com itens repetidos</label>
+          <select id="filtroRepetidos" class="form-select">
+            <option value="__todas__">Todas as configurações</option>
+            <option value="sim">Com repetição</option>
+            <option value="nao">Sem repetição</option>
+          </select>
+        </div>
+      </div>
 
     <div class="d-flex gap-2 mb-3">
       <button id="btnAtualizarComparacao" class="btn btn-outline-primary btn-sm">
@@ -76,6 +92,7 @@
                 <th>DP tempo (ms)</th>
                 <th>CV tempo (%)</th>
                 <th>Média comparações</th>
+                <th>Vetor com itens repetidos</th>
               </tr>
             </thead>
             <tbody id="tabelaSemOutliers"></tbody>
@@ -89,6 +106,7 @@
 </div>
 
 {{ medias_json|json_script:"dados-medias" }}
+{{ repeticoes_disponiveis|json_script:"repeticoes-disponiveis" }}
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -96,8 +114,10 @@
 const mediasBase = JSON.parse(document.getElementById('dados-medias').textContent);
 
 const filtroCondicaoEl = document.getElementById('filtroCondicao');
+const filtroRepeticoesEl = document.getElementById('filtroRepeticoes');
 const filtroTamanhoMinimoEl = document.getElementById('filtroTamanhoMinimo');
 const filtroTamanhoMaximoEl = document.getElementById('filtroTamanhoMaximo');
+const filtroRepetidosEl = document.getElementById('filtroRepetidos');
 const resumoComparacaoEl = document.getElementById('resumoComparacao');
 const btnAtualizarComparacaoEl = document.getElementById('btnAtualizarComparacao');
 
@@ -121,6 +141,20 @@ function escurecer(hex, fator = 0.65) {
 }
 
 /* =========================
+   FILTRO REPETIÇÕES
+========================= */
+const repeticoesDisponiveis = JSON.parse(
+  (document.getElementById('repeticoes-disponiveis')?.textContent || '[]')
+);
+
+filtroRepeticoesEl.innerHTML =
+  `<option value="__todas__">Todas as repetições</option>` +
+  repeticoesDisponiveis
+    .map(r => `<option value="${r}">${r}</option>`)
+    .join('');
+
+
+/* =========================
    FILTRO CONDIÇÃO
 ========================= */
 const condicoesDisponiveis = [...new Set(mediasBase.map(i => i.condicao))].sort();
@@ -137,11 +171,17 @@ function montarComparacaoGrandes() {
   const tamanhoMaximoRaw = filtroTamanhoMaximoEl.value.trim();
   const tamanhoMaximo = tamanhoMaximoRaw !== '' ? Number(tamanhoMaximoRaw) : null;
   const condicao = filtroCondicaoEl.value;
+  const filtroRepetidos = filtroRepetidosEl.value;
 
-  const filtrados = mediasBase.filter(item => {
-    if (item.tamanho < tamanhoMinimo) return false;
-    if (tamanhoMaximo !== null && item.tamanho > tamanhoMaximo) return false;
+   const repeticoesEspecifica = filtroRepeticoesEl.value;
+
+   const filtrados = mediasBase.filter(item => {
+     if (repeticoesEspecifica !== '__todas__' && item.repeticoes !== Number(repeticoesEspecifica)) return false;
+     if (item.tamanho < tamanhoMinimo) return false;
+     if (tamanhoMaximo !== null && item.tamanho > tamanhoMaximo) return false;
     if (condicao !== '__todas__' && item.condicao !== condicao) return false;
+    if (filtroRepetidos === 'sim' && !item.permitir_repetidos) return false;
+    if (filtroRepetidos === 'nao' && item.permitir_repetidos) return false;
     return true;
   });
 
@@ -492,6 +532,7 @@ function montarTabelaSemOutliers() {
     html += `<td>${fmt(item.desvio_tempo_ms_filt)}</td>`;
     html += `<td>${fmt(item.cv_tempo_pct_filt)}</td>`;
     html += `<td>${fmt(item.media_comparacoes_filt, 0)}</td>`;
+    html += `<td>${item.permitir_repetidos ? '<span class="badge text-bg-info">Sim</span>' : '<span class="badge text-bg-light">Não</span>'}</td>`;
     html += '</tr>';
   }
 

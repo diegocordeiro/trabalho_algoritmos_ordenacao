@@ -59,6 +59,20 @@ def _gerar_vetor(condicao, tamanho):
     return vetor
 
 
+def _gerar_vetor_com_repeticao(condicao, tamanho):
+    # Gera k amostras com reposicao do intervalo 1..tamanho, onde k = tamanho.
+    if condicao == 'crescente':
+        vetor = random.choices(range(1, tamanho + 1), k=tamanho)
+        vetor.sort()
+        return vetor
+    if condicao == 'decrescente':
+        vetor = random.choices(range(1, tamanho + 1), k=tamanho)
+        vetor.sort(reverse=True)
+        return vetor
+    # Para aleatorio, retorna amostras com reposicao na ordem natural do choices.
+    return random.choices(range(1, tamanho + 1), k=tamanho)
+
+
 def _parse_vetor_personalizado(texto):
     # Se o texto vier vazio ou com apenas espacos, indica ausencia de vetor customizado.
     if not texto.strip():
@@ -118,7 +132,9 @@ def executar_benchmark(execucao_id):
                         # Se houver vetor personalizado, usa uma copia para evitar mutacao entre rodadas.
                         if vetor_base_personalizado is not None:
                             vetor_entrada = list(vetor_base_personalizado)
-                        # Caso contrario, gera vetor conforme condicao e tamanho atuais.
+                        # Caso contrario, gera vetor conforme condicao, tamanho e configuracao de repeticao.
+                        elif execucao.permitir_repetidos:
+                            vetor_entrada = _gerar_vetor_com_repeticao(condicao, int(tamanho))
                         else:
                             vetor_entrada = _gerar_vetor(condicao, int(tamanho))
                         # Captura timestamp de inicio em alta resolucao.
@@ -363,7 +379,7 @@ def gerar_csv_resultados_arquivo(execucao_id):
 
     with open(caminho_arquivo, 'w', newline='', encoding='utf-8') as f:
         writer = csv.writer(f)
-        writer.writerow(['algoritmo', 'condicao', 'tamanho', 'rodada', 'tempo_ms', 'comparacoes'])
+        writer.writerow(['algoritmo', 'condicao', 'tamanho', 'rodada', 'tempo_ms', 'comparacoes', 'permitir_repetidos'])
 
         for r in resultados:
             writer.writerow([
@@ -373,6 +389,7 @@ def gerar_csv_resultados_arquivo(execucao_id):
                 r.rodada,
                 f'{r.tempo_ms:.2f}',
                 f'{r.comparacoes:.2f}',
+                'Sim' if r.execucao.permitir_repetidos else 'Nao',
             ])
 
     return caminho_arquivo

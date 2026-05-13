@@ -4,9 +4,15 @@
 {% block content %}
 
 <div class="d-flex justify-content-between align-items-center mb-3">
-  <h1 class="h4 mb-0">Resultados da Execução #{{ execucao.id }}</h1>
-  <div>
-    <a class="btn btn-outline-secondary btn-sm" href="{% url 'relatorios:exportar_csv' execucao.id %}">Exportar CSV</a>
+    <h1 class="h4 mb-0">Resultados da Execução #{{ execucao.id }}
+      {% if execucao.permitir_repetidos %}
+        <span class="badge text-bg-info ms-2 fs-6">Vetor com repetição</span>
+      {% else %}
+        <span class="badge text-bg-light ms-2 fs-6">Vetor sem repetição</span>
+      {% endif %}
+    </h1>
+    <div>
+      <a class="btn btn-outline-secondary btn-sm" href="{% url 'relatorios:exportar_csv' execucao.id %}">Exportar CSV</a>
     <a href="/" class="btn btn-primary btn-sm">Nova execução</a>
     <a href="/execucoes/" class="btn btn-warning btn-sm">Ir para execuções</a>
     <a href="/comparar/" class="btn btn-secondary btn-sm">Comparar algoritmos</a>
@@ -27,6 +33,7 @@
             <th>Desvio padrão tempo (ms)</th>
             <th>CV tempo (s/ outliers)</th>
             <th>Média comparações</th>
+            <th>Números repeditos?</th>
           </tr>
         </thead>
         <tbody>
@@ -39,6 +46,13 @@
             <td>±{{ m.desvio_tempo_ms|floatformat:2|intcomma }}</td>
             <td>{{ m.cv_tempo_pct_filt|floatformat:2 }}% ({{ m.classe_cv_tempo_filt }})</td>
             <td>{{ m.media_comparacoes|floatformat:2|intcomma }}</td>
+            <td>
+              {% if execucao.permitir_repetidos %}
+                <span class="badge text-bg-info">Sim</span>
+              {% else %}
+                <span class="badge text-bg-light">Não</span>
+              {% endif %}
+            </td>
           </tr>
           {% endfor %}
         </tbody>
@@ -100,6 +114,7 @@
             <th>Rodada</th>
             <th>Tempo (ms)</th>
             <th>Comparações</th>
+            <th>Vetor com itens repetidos</th>
           </tr>
         </thead>
         <tbody>
@@ -111,6 +126,13 @@
             <td>{{ r.rodada|intcomma }}</td>
             <td>{{ r.tempo_ms|floatformat:2|intcomma }}</td>
             <td>{{ r.comparacoes|floatformat:2|intcomma }}</td>
+            <td>
+              {% if execucao.permitir_repetidos %}
+                <span class="badge text-bg-info">Sim</span>
+              {% else %}
+                <span class="badge text-bg-light">Não</span>
+              {% endif %}
+            </td>
           </tr>
           {% endfor %}
         </tbody>
