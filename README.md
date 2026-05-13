@@ -71,7 +71,7 @@ Para utilizar a interface web, suba o servidor:
 
 Abra: `http://127.0.0.1:8000/`
 
-## Fila no banco + worker serial (sem threading)
+## Fila no banco + worker serial
 
 Em outro terminal, rode o worker único:
 
