@@ -32,6 +32,7 @@ class ConfiguracaoBenchmarkForm(forms.Form):
     tamanho = forms.ChoiceField(
         choices=[(str(t), f'{t:,}'.replace(',', '.')) for t in TAMANHOS_OBRIGATORIOS] + [('outro', 'Outro (especificar)')],
         initial=str(TAMANHOS_OBRIGATORIOS[0]),
+        required=False,
         widget=forms.Select(attrs={'class': 'form-select form-select-lg'}),
     )
     tamanho_personalizado = forms.IntegerField(
@@ -77,9 +78,14 @@ class ConfiguracaoBenchmarkForm(forms.Form):
         tamanho_personalizado = cleaned_data.get('tamanho_personalizado')
 
         if vetor_personalizado and vetor_personalizado.strip():
+            vetor_parsed = [int(x.strip()) for x in vetor_personalizado.split(',') if x.strip()]
+            tem_repetidos = len(vetor_parsed) != len(set(vetor_parsed))
+            cleaned_data['permitir_repetidos'] = tem_repetidos
             return cleaned_data
 
-        if tamanho == 'outro':
+        if not tamanho:
+            self.add_error('tamanho', 'Selecione um tamanho.')
+        elif tamanho == 'outro':
             if not tamanho_personalizado:
                 self.add_error('tamanho_personalizado', 'Informe o tamanho desejado.')
         return cleaned_data

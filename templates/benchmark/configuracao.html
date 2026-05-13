@@ -51,16 +51,16 @@
         </div>
       </div>
 
-      <div class="mt-4">
-        <label class="form-label fw-semibold">Vetor personalizado (opcional)</label>
-        {{ form.vetor_personalizado }}
-        <div class="form-text">Se preenchido, este vetor será usado no lugar da geração automática.</div>
-      </div>
-
       <div class="mt-4 form-check">
         {{ form.permitir_repetidos }}
         <label class="form-check-label fw-semibold" for="{{ form.permitir_repetidos.id_for_label }}">Permitir números repetidos nos vetores gerados automaticamente</label>
         <div class="form-text">Quando marcado, os vetores poderão conter elementos duplicados. Default: vetores sem repetição.</div>
+      </div>
+
+      <div class="mt-4">
+        <label class="form-label fw-semibold">Vetor personalizado (opcional)</label>
+        {{ form.vetor_personalizado }}
+        <div class="form-text">Se preenchido, este vetor será usado no lugar da geração automática.</div>
       </div>
 
        {% if form.errors %}
@@ -74,6 +74,8 @@
           var selectTamanho = document.querySelector('[name="tamanho"]');
           var wrapper = document.getElementById('wrapper-tamanho-personalizado');
           var inputPersonalizado = document.querySelector('[name="tamanho_personalizado"]');
+          var vetorPersonalizado = document.querySelector('[name="vetor_personalizado"]');
+          var permitirRepetidos = document.querySelector('[name="permitir_repetidos"]');
 
           function atualizarVisibilidade() {
             if (selectTamanho.value === 'outro') {
@@ -86,9 +88,35 @@
             }
           }
 
+          function atualizarDesabilitados() {
+            var temVetor = vetorPersonalizado && vetorPersonalizado.value.trim() !== '';
+            if (selectTamanho) {
+              selectTamanho.disabled = temVetor;
+            }
+            if (inputPersonalizado) {
+              inputPersonalizado.disabled = temVetor;
+            }
+            if (permitirRepetidos) {
+              permitirRepetidos.disabled = temVetor;
+            }
+            // Esconde wrapper se vetor personalizado estiver preenchido
+            if (wrapper) {
+              if (temVetor) {
+                wrapper.style.display = 'none';
+              } else {
+                atualizarVisibilidade();
+              }
+            }
+          }
+
           if (selectTamanho) {
             selectTamanho.addEventListener('change', atualizarVisibilidade);
             atualizarVisibilidade();
+          }
+
+          if (vetorPersonalizado) {
+            vetorPersonalizado.addEventListener('input', atualizarDesabilitados);
+            atualizarDesabilitados();
           }
         })();
       </script>
