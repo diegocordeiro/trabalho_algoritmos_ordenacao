@@ -30,9 +30,17 @@ class ConfiguracaoBenchmarkForm(forms.Form):
         widget=forms.CheckboxSelectMultiple,
     )
     tamanho = forms.ChoiceField(
-        choices=[(str(t), f'{t:,}'.replace(',', '.')) for t in TAMANHOS_OBRIGATORIOS],
+        choices=[(str(t), f'{t:,}'.replace(',', '.')) for t in TAMANHOS_OBRIGATORIOS] + [('outro', 'Outro (especificar)')],
         initial=str(TAMANHOS_OBRIGATORIOS[0]),
         widget=forms.Select(attrs={'class': 'form-select form-select-lg'}),
+    )
+    tamanho_personalizado = forms.IntegerField(
+        required=False,
+        min_value=1,
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control form-control-lg',
+            'placeholder': 'Digite o tamanho desejado',
+        })
     )
     repeticoes = forms.IntegerField(
         min_value=3,
@@ -61,3 +69,17 @@ class ConfiguracaoBenchmarkForm(forms.Form):
         if len(condicoes) < 1:
             raise forms.ValidationError('Selecione ao menos uma condição.')
         return condicoes
+
+    def clean(self):
+        cleaned_data = super().clean()
+        tamanho = cleaned_data.get('tamanho')
+        vetor_personalizado = cleaned_data.get('vetor_personalizado')
+        tamanho_personalizado = cleaned_data.get('tamanho_personalizado')
+
+        if vetor_personalizado and vetor_personalizado.strip():
+            return cleaned_data
+
+        if tamanho == 'outro':
+            if not tamanho_personalizado:
+                self.add_error('tamanho_personalizado', 'Informe o tamanho desejado.')
+        return cleaned_data

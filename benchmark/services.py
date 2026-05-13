@@ -121,9 +121,11 @@ def executar_benchmark(execucao_id):
                     for rodada in range(1, execucao.repeticoes + 1):
                         # Incrementa contador global de passos da execucao.
                         passo += 1
+                        # Determina o tamanho efetivo: len do vetor personalizado ou o tamanho da iteracao.
+                        tamanho_efetivo = len(vetor_base_personalizado) if vetor_base_personalizado is not None else int(tamanho)
                         # Monta texto detalhado do passo atual para acompanhamento na interface.
                         execucao.progresso_texto = (
-                            f'Executando {algoritmo_nome} | {condicao} | n={tamanho} | rodada {rodada}/{execucao.repeticoes} '
+                            f'Executando {algoritmo_nome} | {condicao} | n={tamanho_efetivo} | rodada {rodada}/{execucao.repeticoes} '
                             f'({passo}/{total})'
                         )
                         # Salva progresso corrente sem alterar outros campos.
@@ -148,7 +150,7 @@ def executar_benchmark(execucao_id):
                             execucao=execucao,
                             algoritmo=algoritmo_nome,
                             condicao=condicao,
-                            tamanho=int(tamanho),
+                            tamanho=tamanho_efetivo,
                             rodada=rodada,
                             tempo_ms=(fim - inicio) * 1000,
                             comparacoes=comparacoes,

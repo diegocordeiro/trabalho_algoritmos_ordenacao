@@ -44,6 +44,9 @@
           <div class="p-3 border rounded-3 bg-white h-100">
             <div class="section-title">Tamanho</div>
             {{ form.tamanho }}
+            <div id="wrapper-tamanho-personalizado" class="mt-2" style="display:none;">
+              {{ form.tamanho_personalizado }}
+            </div>
           </div>
         </div>
       </div>
@@ -60,11 +63,35 @@
         <div class="form-text">Quando marcado, os vetores poderão conter elementos duplicados. Default: vetores sem repetição.</div>
       </div>
 
-      {% if form.errors %}
+       {% if form.errors %}
       <div class="alert alert-danger mt-3 mb-0">
         Verifique os campos obrigatórios e tente novamente.
       </div>
       {% endif %}
+
+      <script>
+        (function() {
+          var selectTamanho = document.querySelector('[name="tamanho"]');
+          var wrapper = document.getElementById('wrapper-tamanho-personalizado');
+          var inputPersonalizado = document.querySelector('[name="tamanho_personalizado"]');
+
+          function atualizarVisibilidade() {
+            if (selectTamanho.value === 'outro') {
+              wrapper.style.display = 'block';
+            } else {
+              wrapper.style.display = 'none';
+              if (inputPersonalizado) {
+                inputPersonalizado.value = '';
+              }
+            }
+          }
+
+          if (selectTamanho) {
+            selectTamanho.addEventListener('change', atualizarVisibilidade);
+            atualizarVisibilidade();
+          }
+        })();
+      </script>
 
       <div class="d-flex gap-2 mt-4">
         <button type="submit" class="btn btn-primary btn-lg">Iniciar execução</button>

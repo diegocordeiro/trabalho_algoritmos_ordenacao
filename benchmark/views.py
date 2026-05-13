@@ -16,11 +16,20 @@ def pagina_inicial(request):
     if request.method == 'POST':
         form = ConfiguracaoBenchmarkForm(request.POST)
         if form.is_valid():
+            vetor_str = form.cleaned_data['vetor_personalizado']
+            if vetor_str and vetor_str.strip():
+                vetor_parsed = [int(x.strip()) for x in vetor_str.split(',') if x.strip()]
+                tamanhos = [len(vetor_parsed)]
+            elif form.cleaned_data['tamanho'] == 'outro':
+                tamanhos = [form.cleaned_data['tamanho_personalizado']]
+            else:
+                tamanhos = [int(form.cleaned_data['tamanho'])]
+
             execucao = ExecucaoBenchmark.objects.create(
-                nome=form.cleaned_data['nome'] or f'{form.cleaned_data["algoritmo"]} :: Tamanho {form.cleaned_data["tamanho"]}',
+                nome=form.cleaned_data['nome'] or f'{form.cleaned_data["algoritmo"]} :: Tamanho {tamanhos[0]}',
                 algoritmos=[form.cleaned_data['algoritmo']],
                 condicoes=form.cleaned_data['condicoes'],
-                tamanhos=[int(form.cleaned_data['tamanho'])],
+                tamanhos=tamanhos,
                 repeticoes=form.cleaned_data['repeticoes'],
                 vetor_personalizado=form.cleaned_data['vetor_personalizado'],
                 permitir_repetidos=form.cleaned_data.get('permitir_repetidos', False),
