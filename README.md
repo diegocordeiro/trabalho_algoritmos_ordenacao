@@ -14,7 +14,7 @@
 - Python 3.13+
 - Django 5.2.2
 
-## Como rodar (configuração de ambiente)
+## Como executar (configuração de ambiente)
 
 No terminal execute a sequencia a seguir:
 
