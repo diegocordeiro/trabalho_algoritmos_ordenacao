@@ -46,6 +46,7 @@ def _gerar_csv_resultados(resultados_qs, nome_arquivo, incluir_execucao=False):
         'n_original',
         'n_filtrado_tempo',
         'n_filtrado_comp',
+        'permitir_repetidos',
     ])
     writer.writerow(cabecalho)
 
@@ -59,6 +60,8 @@ def _gerar_csv_resultados(resultados_qs, nome_arquivo, incluir_execucao=False):
         grupos[chave].append(r)
 
     for chave, itens in sorted(grupos.items()):
+        amostra = itens[0]
+        permitir_repetidos = amostra.execucao.permitir_repetidos
         tempos = [r.tempo_ms for r in itens]
         comparacoes = [r.comparacoes for r in itens]
 
@@ -134,6 +137,7 @@ def _gerar_csv_resultados(resultados_qs, nome_arquivo, incluir_execucao=False):
             n_original,
             n_filt_tempo,
             n_filt_comp,
+            'Sim' if permitir_repetidos else 'Nao',
         ])
         writer.writerow(linha)
 

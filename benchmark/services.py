@@ -59,6 +59,20 @@ def _gerar_vetor(condicao, tamanho):
     return vetor
 
 
+def _gerar_vetor_com_repeticao(condicao, tamanho):
+    # Gera k amostras com reposicao do intervalo 1..tamanho, onde k = tamanho.
+    if condicao == 'crescente':
+        vetor = random.choices(range(1, tamanho + 1), k=tamanho)
+        vetor.sort()
+        return vetor
+    if condicao == 'decrescente':
+        vetor = random.choices(range(1, tamanho + 1), k=tamanho)
+        vetor.sort(reverse=True)
+        return vetor
+    # Para aleatorio, retorna amostras com reposicao na ordem natural do choices.
+    return random.choices(range(1, tamanho + 1), k=tamanho)
+
+
 def _parse_vetor_personalizado(texto):
     # Se o texto vier vazio ou com apenas espacos, indica ausencia de vetor customizado.
     if not texto.strip():
@@ -107,9 +121,11 @@ def executar_benchmark(execucao_id):
                     for rodada in range(1, execucao.repeticoes + 1):
                         # Incrementa contador global de passos da execucao.
                         passo += 1
+                        # Determina o tamanho efetivo: len do vetor personalizado ou o tamanho da iteracao.
+                        tamanho_efetivo = len(vetor_base_personalizado) if vetor_base_personalizado is not None else int(tamanho)
                         # Monta texto detalhado do passo atual para acompanhamento na interface.
                         execucao.progresso_texto = (
-                            f'Executando {algoritmo_nome} | {condicao} | n={tamanho} | rodada {rodada}/{execucao.repeticoes} '
+                            f'Executando {algoritmo_nome} | {condicao} | n={tamanho_efetivo} | rodada {rodada}/{execucao.repeticoes} '
                             f'({passo}/{total})'
                         )
                         # Salva progresso corrente sem alterar outros campos.
@@ -118,7 +134,9 @@ def executar_benchmark(execucao_id):
                         # Se houver vetor personalizado, usa uma copia para evitar mutacao entre rodadas.
                         if vetor_base_personalizado is not None:
                             vetor_entrada = list(vetor_base_personalizado)
-                        # Caso contrario, gera vetor conforme condicao e tamanho atuais.
+                        # Caso contrario, gera vetor conforme condicao, tamanho e configuracao de repeticao.
+                        elif execucao.permitir_repetidos:
+                            vetor_entrada = _gerar_vetor_com_repeticao(condicao, int(tamanho))
                         else:
                             vetor_entrada = _gerar_vetor(condicao, int(tamanho))
                         # Captura timestamp de inicio em alta resolucao.
@@ -132,7 +150,7 @@ def executar_benchmark(execucao_id):
                             execucao=execucao,
                             algoritmo=algoritmo_nome,
                             condicao=condicao,
-                            tamanho=int(tamanho),
+                            tamanho=tamanho_efetivo,
                             rodada=rodada,
                             tempo_ms=(fim - inicio) * 1000,
                             comparacoes=comparacoes,
@@ -348,6 +366,7 @@ def gerar_csv_resultados_arquivo(execucao_id):
     Gera um arquivo CSV com os dados detalhados da execucao
     (algoritmo, condicao, tamanho, rodada, tempo_ms, comparacoes)
     e salva na pasta resultados/.
+    Inclui uma linha de MEDIA ao final de cada grupo (algoritmo + condicao + tamanho).
     Retorna o caminho do arquivo gerado.
     """
     resultados = ResultadoExecucao.objects.filter(execucao_id=execucao_id).order_by(
@@ -358,14 +377,47 @@ def gerar_csv_resultados_arquivo(execucao_id):
     base_dir = os.path.join(settings.BASE_DIR, 'resultados')
     os.makedirs(base_dir, exist_ok=True)
 
-    nome_arquivo = f'execucao_{execucao_id}.csv'
+    nome_arquivo = f'execucao_{resultados.first().algoritmo}_{execucao_id}.csv'
     caminho_arquivo = os.path.join(base_dir, nome_arquivo)
 
     with open(caminho_arquivo, 'w', newline='', encoding='utf-8') as f:
         writer = csv.writer(f)
-        writer.writerow(['algoritmo', 'condicao', 'tamanho', 'rodada', 'tempo_ms', 'comparacoes'])
+        cabecalho = ['algoritmo', 'condicao', 'tamanho', 'rodada', 'tempo_ms', 'comparacoes', 'permitir_repetidos']
+        writer.writerow(cabecalho)
+
+        grupo_atual = None
+        tempos_grupo = []
+        comps_grupo = []
+        permitir_repetidos_valor = 'Nao'
+
+        def _escrever_media():
+            """Escreve a linha de media para o grupo acumulado."""
+            media_tempo = sum(tempos_grupo) / len(tempos_grupo)
+            media_comp = sum(comps_grupo) / len(comps_grupo)
+            writer.writerow([
+                grupo_atual[0],
+                grupo_atual[1],
+                grupo_atual[2],
+                f'MEDIA (n={len(tempos_grupo)})',
+                f'{media_tempo:.2f}',
+                f'{media_comp:.2f}',
+                permitir_repetidos_valor,
+            ])
 
         for r in resultados:
+            chave = (r.algoritmo, r.condicao, r.tamanho)
+
+            # Se mudou o grupo, escreve a media do grupo anterior
+            if grupo_atual is not None and chave != grupo_atual:
+                _escrever_media()
+                tempos_grupo = []
+                comps_grupo = []
+
+            grupo_atual = chave
+            permitir_repetidos_valor = 'Sim' if r.execucao.permitir_repetidos else 'Nao'
+            tempos_grupo.append(r.tempo_ms)
+            comps_grupo.append(r.comparacoes)
+
             writer.writerow([
                 r.algoritmo,
                 r.condicao,
@@ -373,6 +425,11 @@ def gerar_csv_resultados_arquivo(execucao_id):
                 r.rodada,
                 f'{r.tempo_ms:.2f}',
                 f'{r.comparacoes:.2f}',
+                permitir_repetidos_valor,
             ])
+
+        # Escreve a media do ultimo grupo
+        if grupo_atual is not None and tempos_grupo:
+            _escrever_media()
 
     return caminho_arquivo

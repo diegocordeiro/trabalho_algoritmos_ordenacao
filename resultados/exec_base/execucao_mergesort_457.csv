@@ -1,0 +1,13 @@
+algoritmo,condicao,tamanho,rodada,tempo_ms,comparacoes,permitir_repetidos
+mergesort,aleatorio,500,1,0.41,3390.00,Nao
+mergesort,aleatorio,500,2,0.42,3316.00,Nao
+mergesort,aleatorio,500,3,0.43,3086.00,Nao
+mergesort,aleatorio,500,MEDIA (n=3),0.42,3264.00,Nao
+mergesort,crescente,500,1,0.33,2272.00,Nao
+mergesort,crescente,500,2,0.30,2272.00,Nao
+mergesort,crescente,500,3,0.32,2272.00,Nao
+mergesort,crescente,500,MEDIA (n=3),0.32,2272.00,Nao
+mergesort,decrescente,500,1,0.30,2216.00,Nao
+mergesort,decrescente,500,2,0.31,2216.00,Nao
+mergesort,decrescente,500,3,0.29,2216.00,Nao
+mergesort,decrescente,500,MEDIA (n=3),0.30,2216.00,Nao
