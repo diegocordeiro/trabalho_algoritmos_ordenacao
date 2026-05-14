@@ -366,6 +366,7 @@ def gerar_csv_resultados_arquivo(execucao_id):
     Gera um arquivo CSV com os dados detalhados da execucao
     (algoritmo, condicao, tamanho, rodada, tempo_ms, comparacoes)
     e salva na pasta resultados/.
+    Inclui uma linha de MEDIA ao final de cada grupo (algoritmo + condicao + tamanho).
     Retorna o caminho do arquivo gerado.
     """
     resultados = ResultadoExecucao.objects.filter(execucao_id=execucao_id).order_by(
@@ -381,9 +382,42 @@ def gerar_csv_resultados_arquivo(execucao_id):
 
     with open(caminho_arquivo, 'w', newline='', encoding='utf-8') as f:
         writer = csv.writer(f)
-        writer.writerow(['algoritmo', 'condicao', 'tamanho', 'rodada', 'tempo_ms', 'comparacoes', 'permitir_repetidos'])
+        cabecalho = ['algoritmo', 'condicao', 'tamanho', 'rodada', 'tempo_ms', 'comparacoes', 'permitir_repetidos']
+        writer.writerow(cabecalho)
+
+        grupo_atual = None
+        tempos_grupo = []
+        comps_grupo = []
+        permitir_repetidos_valor = 'Nao'
+
+        def _escrever_media():
+            """Escreve a linha de media para o grupo acumulado."""
+            media_tempo = sum(tempos_grupo) / len(tempos_grupo)
+            media_comp = sum(comps_grupo) / len(comps_grupo)
+            writer.writerow([
+                grupo_atual[0],
+                grupo_atual[1],
+                grupo_atual[2],
+                f'MEDIA (n={len(tempos_grupo)})',
+                f'{media_tempo:.2f}',
+                f'{media_comp:.2f}',
+                permitir_repetidos_valor,
+            ])
 
         for r in resultados:
+            chave = (r.algoritmo, r.condicao, r.tamanho)
+
+            # Se mudou o grupo, escreve a media do grupo anterior
+            if grupo_atual is not None and chave != grupo_atual:
+                _escrever_media()
+                tempos_grupo = []
+                comps_grupo = []
+
+            grupo_atual = chave
+            permitir_repetidos_valor = 'Sim' if r.execucao.permitir_repetidos else 'Nao'
+            tempos_grupo.append(r.tempo_ms)
+            comps_grupo.append(r.comparacoes)
+
             writer.writerow([
                 r.algoritmo,
                 r.condicao,
@@ -391,7 +425,11 @@ def gerar_csv_resultados_arquivo(execucao_id):
                 r.rodada,
                 f'{r.tempo_ms:.2f}',
                 f'{r.comparacoes:.2f}',
-                'Sim' if r.execucao.permitir_repetidos else 'Nao',
+                permitir_repetidos_valor,
             ])
+
+        # Escreve a media do ultimo grupo
+        if grupo_atual is not None and tempos_grupo:
+            _escrever_media()
 
     return caminho_arquivo
