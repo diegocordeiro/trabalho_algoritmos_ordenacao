@@ -377,7 +377,7 @@ def gerar_csv_resultados_arquivo(execucao_id):
     base_dir = os.path.join(settings.BASE_DIR, 'resultados')
     os.makedirs(base_dir, exist_ok=True)
 
-    nome_arquivo = f'execucao_{execucao_id}.csv'
+    nome_arquivo = f'execucao_{resultados.first().algoritmo}_{execucao_id}.csv'
     caminho_arquivo = os.path.join(base_dir, nome_arquivo)
 
     with open(caminho_arquivo, 'w', newline='', encoding='utf-8') as f:

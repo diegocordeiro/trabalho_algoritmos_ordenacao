@@ -1,0 +1,13 @@
+algoritmo,condicao,tamanho,rodada,tempo_ms,comparacoes,permitir_repetidos
+quicksort,aleatorio,500,1,0.31,4516.00,Nao
+quicksort,aleatorio,500,2,0.30,4600.00,Nao
+quicksort,aleatorio,500,3,0.31,4764.00,Nao
+quicksort,aleatorio,500,MEDIA (n=3),0.31,4626.67,Nao
+quicksort,crescente,500,1,0.54,4832.00,Nao
+quicksort,crescente,500,2,0.33,5681.00,Nao
+quicksort,crescente,500,3,0.31,5007.00,Nao
+quicksort,crescente,500,MEDIA (n=3),0.39,5173.33,Nao
+quicksort,decrescente,500,1,0.30,4696.00,Nao
+quicksort,decrescente,500,2,0.29,4747.00,Nao
+quicksort,decrescente,500,3,0.27,5093.00,Nao
+quicksort,decrescente,500,MEDIA (n=3),0.29,4845.33,Nao
