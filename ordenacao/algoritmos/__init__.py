@@ -6,6 +6,7 @@ from .hibrido2 import ordenar_hibrido2
 from .hibrido3 import ordenar_hibrido3
 from .hibrido4 import ordenar_hibrido4
 from .hibrido5 import ordenar_hibrido5
+from .hibrido_final import ordenar_hibrido_final
 from .insertionsort import ordenar_insertionsort
 from .mergesort import ordenar_mergesort
 from .quicksort import ordenar_quicksort
@@ -24,4 +25,5 @@ ALGORITMOS = {
     'hibrido3': ordenar_hibrido3,
     'hibrido4': ordenar_hibrido4,
     'hibrido5': ordenar_hibrido5,
+    'hibrido_final': ordenar_hibrido_final,
 }
