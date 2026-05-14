@@ -36,8 +36,8 @@ brew install python3
 **3. Em seguida**, ainda dentro da pasta do projeto:
 
 ```bash
-python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt
+python3 -m venv .venv && \
+.venv/bin/pip install -r requirements.txt && \
 .venv/bin/python manage.py migrate
 ```
 
