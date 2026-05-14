@@ -20,8 +20,7 @@ No terminal execute a sequencia a seguir:
 
 **1. Clone o repositório:**
 ```bash
-git clone https://github.com/diegocordeiro/trabalho_algoritmos_ordenacao.git
-cd trabalho_algoritmos_ordenacao
+git clone https://github.com/diegocordeiro/trabalho_algoritmos_ordenacao.git && cd trabalho_algoritmos_ordenacao
 ```
 
 **2. Instale o virtualenv** (caso o comando `python3 -m venv` não funcione):
