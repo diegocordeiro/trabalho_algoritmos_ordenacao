@@ -51,7 +51,7 @@ Para executar o benchmark com todos os algoritmos, 3 rodadas e tamanho 500, bast
 
 Isso executará todos os 5 algoritmos (`bublesort`, `insertionsort`, `mergesort`, `heap`, `quicksort`) nas 3 condições (`crescente`, `decrescente`, `aleatorio`) com vetores de tamanho 500 e 3 repetições cada de maneira sequêncial.
 
-A saída é armazenada no banco de dados `db.sqlite3` e também em um arquivo CSV na pasta `resultados/` (`resultados/execucao_{id}.csv`).
+A saída é armazenada no banco de dados `db.sqlite3` e também em um arquivo CSV na pasta `resultados/` (`resultados/execucao_{algoritmo}_{id}.csv`).
 
 ### Parâmetros disponíveis
 
