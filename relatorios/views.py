@@ -1,31 +1,22 @@
 import csv
-import statistics
-from collections import defaultdict
 
 from django.http import HttpResponse, HttpResponseBadRequest
 from django.shortcuts import get_object_or_404
 from django.views.decorators.http import require_POST
 
 from benchmark.models import ExecucaoBenchmark, ResultadoExecucao
-from benchmark.services import _filtrar_outliers
-
-
-def _fmt(valor, casas=4):
-    """
-    Formata números float com número fixo de casas decimais.
-    Trata None de forma segura.
-    """
-    if valor is None:
-        return ''
-    return f'{valor:.{casas}f}'
 
 
 def _gerar_csv_resultados(resultados_qs, nome_arquivo, incluir_execucao=False):
     """
-    Gera CSV com métricas estatísticas filtradas (sem outliers).
-    Agrupa resultados por algoritmo, condicao, tamanho (e execucao_id se aplicável),
-    aplica _filtrar_outliers nos tempos e comparações, e computa CV filtrado.
+    Gera CSV com os dados detalhados por rodada (algoritmo, condicao, tamanho, rodada,
+    tempo_ms, comparacoes, permitir_repetidos). Inclui uma linha de MEDIA ao final de
+    cada grupo (algoritmo + condicao + tamanho [+ execucao_id se incluir_execucao]).
     """
+    resultados = resultados_qs.order_by(
+        'algoritmo', 'condicao', 'tamanho', 'rodada'
+    )
+
     resposta = HttpResponse(content_type='text/csv; charset=utf-8')
     resposta['Content-Disposition'] = f'attachment; filename="{nome_arquivo}"'
 
@@ -38,127 +29,90 @@ def _gerar_csv_resultados(resultados_qs, nome_arquivo, incluir_execucao=False):
         'algoritmo',
         'condicao',
         'tamanho',
-        'media_tempo_ms',
-        'std_tempo_ms',
-        'ic95_tempo_lower',
-        'ic95_tempo_upper',
-        'media_comparacoes',
-        'ic95_comp_lower',
-        'ic95_comp_upper',
-        'n_original',
-        'n_filtrado_tempo',
-        'n_filtrado_comp',
+        'rodada',
+        'tempo_ms',
+        'comparacoes',
         'permitir_repetidos',
     ])
     writer.writerow(cabecalho)
 
-    # Agrupa resultados por chave de combinação
-    grupos = defaultdict(list)
-    for r in resultados_qs:
+    grupo_atual = None
+    tempos_grupo = []
+    comps_grupo = []
+    permitir_repetidos_valor = 'Nao'
+
+    def _escrever_media():
+        """Escreve a linha de media para o grupo acumulado."""
+        media_tempo = sum(tempos_grupo) / len(tempos_grupo)
+        media_comp = sum(comps_grupo) / len(comps_grupo)
+        linha = []
+        if incluir_execucao:
+            linha.append(grupo_atual[0])
+            linha.extend([
+                grupo_atual[1],
+                grupo_atual[2],
+                grupo_atual[3],
+            ])
+        else:
+            linha.extend([
+                grupo_atual[0],
+                grupo_atual[1],
+                grupo_atual[2],
+            ])
+        linha.extend([
+            f'MEDIA (n={len(tempos_grupo)})',
+            f'{media_tempo:.2f}',
+            f'{media_comp:.2f}',
+            permitir_repetidos_valor,
+        ])
+        writer.writerow(linha)
+
+    for r in resultados:
         if incluir_execucao:
             chave = (r.execucao_id, r.algoritmo, r.condicao, r.tamanho)
         else:
             chave = (r.algoritmo, r.condicao, r.tamanho)
-        grupos[chave].append(r)
 
-    for chave, itens in sorted(grupos.items()):
-        amostra = itens[0]
-        permitir_repetidos = amostra.execucao.permitir_repetidos
-        tempos = [r.tempo_ms for r in itens]
-        comparacoes = [r.comparacoes for r in itens]
+        # Se mudou o grupo, escreve a media do grupo anterior
+        if grupo_atual is not None and chave != grupo_atual:
+            _escrever_media()
+            tempos_grupo = []
+            comps_grupo = []
 
-        n_original = len(itens)
-
-        # --- FILTRAGEM DE OUTLIERS ---
-        tempos_filt, removeu_tempo = _filtrar_outliers(tempos)
-        comps_filt, removeu_comp = _filtrar_outliers(comparacoes)
-
-        # --- TEMPO (com outliers removidos se aplicável) ---
-        if removeu_tempo and len(tempos_filt) >= 2:
-            media_tempo = statistics.mean(tempos_filt)
-            std_tempo = statistics.stdev(tempos_filt)
-            n_filt_tempo = len(tempos_filt)
-            vals_ic_tempo = tempos_filt
-        else:
-            media_tempo = statistics.mean(tempos)
-            std_tempo = statistics.stdev(tempos) if len(tempos) > 1 else 0
-            n_filt_tempo = n_original
-            vals_ic_tempo = tempos
-
-        # IC95 para tempo
-        n_ic_t = len(vals_ic_tempo)
-        if n_ic_t >= 2:
-            s_ic_t = statistics.stdev(vals_ic_tempo)
-            ep_t = s_ic_t / (n_ic_t ** 0.5)
-            ic95_tempo_lower = media_tempo - 2.0 * ep_t
-            ic95_tempo_upper = media_tempo + 2.0 * ep_t
-        else:
-            ic95_tempo_lower = media_tempo
-            ic95_tempo_upper = media_tempo
-
-        # --- COMPARAÇÕES (com outliers removidos se aplicável) ---
-        if removeu_comp and len(comps_filt) >= 2:
-            media_comp = statistics.mean(comps_filt)
-            std_comp = statistics.stdev(comps_filt)
-            n_filt_comp = len(comps_filt)
-            vals_ic_comp = comps_filt
-        else:
-            media_comp = statistics.mean(comparacoes)
-            std_comp = statistics.stdev(comparacoes) if len(comparacoes) > 1 else 0
-            n_filt_comp = n_original
-            vals_ic_comp = comparacoes
-
-        # IC95 para comparações
-        n_ic_c = len(vals_ic_comp)
-        if n_ic_c >= 2:
-            s_ic_c = statistics.stdev(vals_ic_comp)
-            ep_c = s_ic_c / (n_ic_c ** 0.5)
-            ic95_comp_lower = media_comp - 2.0 * ep_c
-            ic95_comp_upper = media_comp + 2.0 * ep_c
-        else:
-            ic95_comp_lower = media_comp
-            ic95_comp_upper = media_comp
+        grupo_atual = chave
+        permitir_repetidos_valor = 'Sim' if r.execucao.permitir_repetidos else 'Nao'
+        tempos_grupo.append(r.tempo_ms)
+        comps_grupo.append(r.comparacoes)
 
         linha = []
         if incluir_execucao:
-            linha.append(chave[0])  # execucao_id
-            linha.extend([
-                chave[1],  # algoritmo
-                chave[2],  # condicao
-                chave[3],  # tamanho
-            ])
-        else:
-            linha.extend([
-                chave[0],  # algoritmo
-                chave[1],  # condicao
-                chave[2],  # tamanho
-            ])
-
+            linha.append(r.execucao_id)
         linha.extend([
-            _fmt(media_tempo),
-            _fmt(std_tempo),
-            _fmt(ic95_tempo_lower),
-            _fmt(ic95_tempo_upper),
-            _fmt(media_comp),
-            _fmt(ic95_comp_lower),
-            _fmt(ic95_comp_upper),
-            n_original,
-            n_filt_tempo,
-            n_filt_comp,
-            'Sim' if permitir_repetidos else 'Nao',
+            r.algoritmo,
+            r.condicao,
+            r.tamanho,
+            r.rodada,
+            f'{r.tempo_ms:.2f}',
+            f'{r.comparacoes:.2f}',
+            permitir_repetidos_valor,
         ])
         writer.writerow(linha)
+
+    # Escreve a media do ultimo grupo
+    if grupo_atual is not None and tempos_grupo:
+        _escrever_media()
 
     return resposta
 
 
 def exportar_csv(request, execucao_id):
     """
-    Exporta uma execução com estatísticas filtradas (sem outliers).
+    Exporta uma execucao no formato por rodada (algoritmo, condicao, tamanho, rodada,
+    tempo_ms, comparacoes, permitir_repetidos) com linha de MEDIA ao final de cada grupo.
     """
     execucao = get_object_or_404(ExecucaoBenchmark, id=execucao_id)
 
-    resultados = ResultadoExecucao.objects.filter(execucao=execucao).order_by('algoritmo', 'condicao', 'tamanho')
+    resultados = ResultadoExecucao.objects.filter(execucao=execucao)
 
     return _gerar_csv_resultados(
         resultados,
@@ -170,14 +124,16 @@ def exportar_csv(request, execucao_id):
 @require_POST
 def exportar_csv_selecionadas(request):
     """
-    Exporta múltiplas execuções no mesmo formato estatístico filtrado (sem outliers).
+    Exporta multiplas execucoes no formato por rodada (algoritmo, condicao, tamanho,
+    rodada, tempo_ms, comparacoes, permitir_repetidos) com linha de MEDIA ao final
+    de cada grupo, incluindo coluna execucao_id.
     """
     ids = request.POST.getlist('execucoes')
 
     if not ids:
         return HttpResponseBadRequest('Selecione ao menos uma execução.')
 
-    resultados = ResultadoExecucao.objects.filter(execucao_id__in=ids).order_by('execucao_id', 'algoritmo', 'condicao', 'tamanho')
+    resultados = ResultadoExecucao.objects.filter(execucao_id__in=ids)
 
     return _gerar_csv_resultados(
         resultados,
