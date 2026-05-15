@@ -40,9 +40,11 @@ def _gerar_csv_resultados(resultados_qs, nome_arquivo, incluir_execucao=False):
         'tamanho',
         'media_tempo_ms',
         'std_tempo_ms',
-        'cv_tempo_pct',
-        'classe_cv_tempo',
+        'ic95_tempo_lower',
+        'ic95_tempo_upper',
         'media_comparacoes',
+        'ic95_comp_lower',
+        'ic95_comp_upper',
         'n_original',
         'n_filtrado_tempo',
         'n_filtrado_comp',
@@ -75,43 +77,47 @@ def _gerar_csv_resultados(resultados_qs, nome_arquivo, incluir_execucao=False):
         if removeu_tempo and len(tempos_filt) >= 2:
             media_tempo = statistics.mean(tempos_filt)
             std_tempo = statistics.stdev(tempos_filt)
-            cv_tempo = (std_tempo / media_tempo * 100) if media_tempo > 0 else 0
             n_filt_tempo = len(tempos_filt)
+            vals_ic_tempo = tempos_filt
         else:
             media_tempo = statistics.mean(tempos)
             std_tempo = statistics.stdev(tempos) if len(tempos) > 1 else 0
-            cv_tempo = (std_tempo / media_tempo * 100) if media_tempo > 0 else 0
             n_filt_tempo = n_original
+            vals_ic_tempo = tempos
 
-        if cv_tempo <= 10:
-            classe_cv_tempo = 'Muito Baixa Variação'
-        elif cv_tempo <= 20:
-            classe_cv_tempo = 'Moderada Variação'
-        elif cv_tempo <= 30:
-            classe_cv_tempo = 'Alta Variação'
+        # IC95 para tempo
+        n_ic_t = len(vals_ic_tempo)
+        if n_ic_t >= 2:
+            s_ic_t = statistics.stdev(vals_ic_tempo)
+            ep_t = s_ic_t / (n_ic_t ** 0.5)
+            ic95_tempo_lower = media_tempo - 2.0 * ep_t
+            ic95_tempo_upper = media_tempo + 2.0 * ep_t
         else:
-            classe_cv_tempo = 'Variação Muito Alta'
+            ic95_tempo_lower = media_tempo
+            ic95_tempo_upper = media_tempo
 
         # --- COMPARAÇÕES (com outliers removidos se aplicável) ---
         if removeu_comp and len(comps_filt) >= 2:
             media_comp = statistics.mean(comps_filt)
             std_comp = statistics.stdev(comps_filt)
-            cv_comp = (std_comp / media_comp * 100) if media_comp > 0 else 0
             n_filt_comp = len(comps_filt)
+            vals_ic_comp = comps_filt
         else:
             media_comp = statistics.mean(comparacoes)
             std_comp = statistics.stdev(comparacoes) if len(comparacoes) > 1 else 0
-            cv_comp = (std_comp / media_comp * 100) if media_comp > 0 else 0
             n_filt_comp = n_original
+            vals_ic_comp = comparacoes
 
-        if cv_comp <= 10:
-            classe_cv_comp = 'Muito Baixa Variação'
-        elif cv_comp <= 20:
-            classe_cv_comp = 'Moderada Variação'
-        elif cv_comp <= 30:
-            classe_cv_comp = 'Alta Variação'
+        # IC95 para comparações
+        n_ic_c = len(vals_ic_comp)
+        if n_ic_c >= 2:
+            s_ic_c = statistics.stdev(vals_ic_comp)
+            ep_c = s_ic_c / (n_ic_c ** 0.5)
+            ic95_comp_lower = media_comp - 2.0 * ep_c
+            ic95_comp_upper = media_comp + 2.0 * ep_c
         else:
-            classe_cv_comp = 'Variação Muito Alta'
+            ic95_comp_lower = media_comp
+            ic95_comp_upper = media_comp
 
         linha = []
         if incluir_execucao:
@@ -131,9 +137,11 @@ def _gerar_csv_resultados(resultados_qs, nome_arquivo, incluir_execucao=False):
         linha.extend([
             _fmt(media_tempo),
             _fmt(std_tempo),
-            _fmt(cv_tempo, 2),
-            classe_cv_tempo,
+            _fmt(ic95_tempo_lower),
+            _fmt(ic95_tempo_upper),
             _fmt(media_comp),
+            _fmt(ic95_comp_lower),
+            _fmt(ic95_comp_upper),
             n_original,
             n_filt_tempo,
             n_filt_comp,

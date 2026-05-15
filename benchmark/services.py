@@ -12,36 +12,36 @@ from benchmark.models import ExecucaoBenchmark, ResultadoExecucao
 from ordenacao.algoritmos import ALGORITMOS
 
 
-def _filtrar_outliers(valores, limiar_cv=20, zscore_max=2.0):
+def _filtrar_outliers(valores, zscore_max=2.0):
     """
-    Remove outliers de uma lista de valores com base no coeficiente de variacao.
-    Se o CV for maior que o limiar (indicando instabilidade), remove valores
-    cujo z-score absoluto exceda zscore_max.
+    Remove outliers de uma lista de valores com base no z-score
+    (sempre aplica z-score = 2, alinhado com analisar_resultados_estatistico.py).
     Retorna a lista filtrada e um booleano indicando se houve remocao.
     """
-    if len(valores) < 3:
-        return list(valores), False
+    if len(valores) <= 2:
+        return list(valores), [], 0
 
-    media = statistics.mean(valores)
-    desvio = statistics.stdev(valores) if len(valores) > 1 else 0
+    n = len(valores)
+    media = sum(valores) / n
+    if n > 1:
+        variancia = sum((x - media) ** 2 for x in valores) / (n - 1)
+        desvio = math.sqrt(variancia)
+    else:
+        desvio = 0.0
 
-    if media == 0 or desvio == 0:
-        return list(valores), False
+    if desvio == 0:
+        return list(valores), [], 0
 
-    cv = (desvio / media) * 100
+    filtrados = []
+    removidos = []
+    for i, x in enumerate(valores):
+        z_score = abs(x - media) / desvio
+        if z_score <= zscore_max:
+            filtrados.append(x)
+        else:
+            removidos.append(i)
 
-    # So filtra se o CV indicar instabilidade
-    if cv <= limiar_cv:
-        return list(valores), False
-
-    # Remove valores com z-score absoluto acima do limite
-    filtrados = [v for v in valores if abs((v - media) / desvio) <= zscore_max]
-
-    # Se removeu todos ou quase todos, retorna os originais
-    if len(filtrados) < 2:
-        return list(valores), False
-
-    return filtrados, len(filtrados) < len(valores)
+    return filtrados, removidos, len(removidos)
 
 
 def _gerar_vetor(condicao, tamanho):
@@ -196,68 +196,51 @@ def medias_por_combinacao(execucao):
 
         desvio_tempo = statistics.stdev(tempos) if len(tempos) > 1 else 0
         desvio_comp = statistics.stdev(comparacoes) if len(comparacoes) > 1 else 0
-        cv_tempo = (desvio_tempo / media_tempo * 100) if media_tempo > 0 else 0
-        cv_comp = (desvio_comp / media_comp * 100) if media_comp > 0 else 0
-
-        if cv_tempo <= 10:
-            classe_cv_tempo = 'Muito Baixa Variação'
-        elif cv_tempo <= 20:
-            classe_cv_tempo = 'Moderada Variação'
-        elif cv_tempo <= 30:
-            classe_cv_tempo = 'Alta Variação'
-        else:
-            classe_cv_tempo = 'Variação Muito Alta'
-
-        if cv_comp <= 10:
-            classe_cv_comp = 'Muito Baixa Variação'
-        elif cv_comp <= 20:
-            classe_cv_comp = 'Moderada Variação'
-        elif cv_comp <= 30:
-            classe_cv_comp = 'Alta Variação'
-        else:
-            classe_cv_comp = 'Variação Muito Alta'
 
         # ---- Versao sem outliers (filtrada) ----
-        tempos_filtrados, removeu_tempo = _filtrar_outliers(tempos)
-        comps_filtrados, removeu_comp = _filtrar_outliers(comparacoes)
+        tempos_filtrados, _, qtd_out_tempo = _filtrar_outliers(tempos)
+        comps_filtrados, _, qtd_out_comp = _filtrar_outliers(comparacoes)
 
-        if removeu_tempo and len(tempos_filtrados) >= 2:
+        if qtd_out_tempo > 0 and len(tempos_filtrados) >= 2:
             media_tempo_filt = sum(tempos_filtrados) / len(tempos_filtrados)
             desvio_tempo_filt = statistics.stdev(tempos_filtrados)
-            cv_tempo_filt = (desvio_tempo_filt / media_tempo_filt * 100) if media_tempo_filt > 0 else 0
-            classe_cv_tempo_filt = (
-                'Muito Baixa Variação' if cv_tempo_filt <= 10 else
-                'Moderada Variação' if cv_tempo_filt <= 20 else
-                'Alta Variação' if cv_tempo_filt <= 30 else
-                'Variação Muito Alta'
-            )
         else:
             media_tempo_filt = media_tempo
             desvio_tempo_filt = desvio_tempo
-            cv_tempo_filt = cv_tempo
-            classe_cv_tempo_filt = classe_cv_tempo
-            removeu_tempo = False
+            qtd_out_tempo = 0
 
-        if removeu_comp and len(comps_filtrados) >= 2:
+        if qtd_out_comp > 0 and len(comps_filtrados) >= 2:
             media_comp_filt = sum(comps_filtrados) / len(comps_filtrados)
             desvio_comp_filt = statistics.stdev(comps_filtrados)
-            cv_comp_filt = (desvio_comp_filt / media_comp_filt * 100) if media_comp_filt > 0 else 0
-            classe_cv_comp_filt = (
-                'Muito Baixa Variação' if cv_comp_filt <= 10 else
-                'Moderada Variação' if cv_comp_filt <= 20 else
-                'Alta Variação' if cv_comp_filt <= 30 else
-                'Variação Muito Alta'
-            )
         else:
             media_comp_filt = media_comp
             desvio_comp_filt = desvio_comp
-            cv_comp_filt = cv_comp
-            classe_cv_comp_filt = classe_cv_comp
-            removeu_comp = False
+            qtd_out_comp = 0
 
         n_original = len(itens)
-        n_filtrado_tempo = len(tempos_filtrados) if removeu_tempo else n_original
-        n_filtrado_comp = len(comps_filtrados) if removeu_comp else n_original
+        n_filtrado_tempo = len(tempos_filtrados) if qtd_out_tempo > 0 else n_original
+        n_filtrado_comp = len(comps_filtrados) if qtd_out_comp > 0 else n_original
+
+        # IC 95% para tempos e comparacoes (original e filtrado)
+        def _calc_ic95(vals):
+            n = len(vals)
+            if n < 2:
+                m = vals[0] if n == 1 else 0
+                return (round(m, 3), round(m, 3))
+            m = statistics.fmean(vals)
+            s = statistics.stdev(vals)
+            z = 2.0
+            ep = s / (n ** 0.5)
+            margem = z * ep
+            return (round(m - margem, 3), round(m + margem, 3))
+
+        ic95_tempo_lower, ic95_tempo_upper = _calc_ic95(tempos)
+        ic95_comp_lower, ic95_comp_upper = _calc_ic95(comparacoes)
+
+        tempos_para_ic95 = tempos_filtrados if qtd_out_tempo > 0 and len(tempos_filtrados) >= 2 else tempos
+        comps_para_ic95 = comps_filtrados if qtd_out_comp > 0 and len(comps_filtrados) >= 2 else comparacoes
+        ic95_tempo_filt_lower, ic95_tempo_filt_upper = _calc_ic95(tempos_para_ic95)
+        ic95_comp_filt_lower, ic95_comp_filt_upper = _calc_ic95(comps_para_ic95)
 
         medias.append({
             "algoritmo": algoritmo,
@@ -266,26 +249,26 @@ def medias_por_combinacao(execucao):
             # Original
             "media_tempo_ms": media_tempo,
             "desvio_tempo_ms": desvio_tempo,
-            "cv_tempo_pct": cv_tempo,
-            "classe_cv_tempo": classe_cv_tempo,
+            "ic95_tempo_lower": ic95_tempo_lower,
+            "ic95_tempo_upper": ic95_tempo_upper,
             "media_comparacoes": media_comp,
             "desvio_comparacoes": desvio_comp,
-            "cv_comparacoes_pct": cv_comp,
-            "classe_cv_comparacoes": classe_cv_comp,
+            "ic95_comp_lower": ic95_comp_lower,
+            "ic95_comp_upper": ic95_comp_upper,
             "n": n_original,
             # Filtrado (sem outliers)
             "media_tempo_ms_filt": media_tempo_filt,
             "desvio_tempo_ms_filt": desvio_tempo_filt,
-            "cv_tempo_pct_filt": cv_tempo_filt,
-            "classe_cv_tempo_filt": classe_cv_tempo_filt,
+            "ic95_tempo_filt_lower": ic95_tempo_filt_lower,
+            "ic95_tempo_filt_upper": ic95_tempo_filt_upper,
             "n_filtrado_tempo": n_filtrado_tempo,
-            "removeu_outliers_tempo": removeu_tempo,
+            "removeu_outliers_tempo": qtd_out_tempo > 0,
             "media_comparacoes_filt": media_comp_filt,
             "desvio_comparacoes_filt": desvio_comp_filt,
-            "cv_comparacoes_pct_filt": cv_comp_filt,
-            "classe_cv_comparacoes_filt": classe_cv_comp_filt,
+            "ic95_comp_filt_lower": ic95_comp_filt_lower,
+            "ic95_comp_filt_upper": ic95_comp_filt_upper,
             "n_filtrado_comp": n_filtrado_comp,
-            "removeu_outliers_comp": removeu_comp,
+            "removeu_outliers_comp": qtd_out_comp > 0,
         })
 
         chave_nome = f"{algoritmo}-{condicao}"
@@ -295,12 +278,8 @@ def medias_por_combinacao(execucao):
                 "tamanhos": [],
                 "tempos": [],
                 "desvio_tempo": [],
-                "cv_tempo_pct": [],
-                "classe_cv_tempo": [],
                 "comparacoes": [],
                 "desvio_comparacoes": [],
-                "cv_comparacoes_pct": [],
-                "classe_cv_comparacoes": [],
                 # Filtrado (sem outliers)
                 "tempos_filt": [],
                 "desvio_tempo_filt": [],
@@ -310,12 +289,8 @@ def medias_por_combinacao(execucao):
         dados[chave_nome]["tamanhos"].append(tamanho)
         dados[chave_nome]["tempos"].append(media_tempo)
         dados[chave_nome]["desvio_tempo"].append(desvio_tempo)
-        dados[chave_nome]["cv_tempo_pct"].append(cv_tempo)
-        dados[chave_nome]["classe_cv_tempo"].append(classe_cv_tempo)
         dados[chave_nome]["comparacoes"].append(media_comp)
         dados[chave_nome]["desvio_comparacoes"].append(desvio_comp)
-        dados[chave_nome]["cv_comparacoes_pct"].append(cv_comp)
-        dados[chave_nome]["classe_cv_comparacoes"].append(classe_cv_comp)
         # Filtrado (sem outliers)
         dados[chave_nome]["tempos_filt"].append(media_tempo_filt)
         dados[chave_nome]["desvio_tempo_filt"].append(desvio_tempo_filt)
@@ -327,7 +302,7 @@ def medias_por_combinacao(execucao):
 
 def dados_grafico(execucao):
     # Obtem medias agregadas para montar a estrutura de series dos graficos.
-    medias = medias_por_combinacao(execucao)
+    medias, _ = medias_por_combinacao(execucao)
     # Inicializa estrutura final no formato esperado pelo frontend.
     estrutura = {}
     # Itera por cada linha agregada para preencher series.
@@ -351,15 +326,15 @@ def dados_grafico(execucao):
         # Adiciona tamanho na serie correspondente.
         estrutura[chave]['tamanhos'].append(item['tamanho'])
         # Original
-        estrutura[chave]['tempos'].append(round(item['media_tempo_ms'], 4))
-        estrutura[chave]['desvio_tempo'].append(round(item['desvio_tempo_ms'], 4))
-        estrutura[chave]['comparacoes'].append(round(item['media_comparacoes'], 2))
-        estrutura[chave]['desvio_comparacoes'].append(round(item['desvio_comparacoes'], 2))
+        estrutura[chave]['tempos'].append(round(item['media_tempo_ms'], 3))
+        estrutura[chave]['desvio_tempo'].append(round(item['desvio_tempo_ms'], 3))
+        estrutura[chave]['comparacoes'].append(round(item['media_comparacoes'], 3))
+        estrutura[chave]['desvio_comparacoes'].append(round(item['desvio_comparacoes'], 3))
         # Filtrado (sem outliers)
-        estrutura[chave]['tempos_filt'].append(round(item['media_tempo_ms_filt'], 4))
-        estrutura[chave]['desvio_tempo_filt'].append(round(item['desvio_tempo_ms_filt'], 4))
-        estrutura[chave]['comparacoes_filt'].append(round(item['media_comparacoes_filt'], 2))
-        estrutura[chave]['desvio_comparacoes_filt'].append(round(item['desvio_comparacoes_filt'], 2))
+        estrutura[chave]['tempos_filt'].append(round(item['media_tempo_ms_filt'], 3))
+        estrutura[chave]['desvio_tempo_filt'].append(round(item['desvio_tempo_ms_filt'], 3))
+        estrutura[chave]['comparacoes_filt'].append(round(item['media_comparacoes_filt'], 3))
+        estrutura[chave]['desvio_comparacoes_filt'].append(round(item['desvio_comparacoes_filt'], 3))
     # Retorna estrutura final para consumo dos graficos na view.
     return estrutura
 

@@ -1,5 +1,7 @@
 import statistics
 from collections import defaultdict
+
+import scipy.stats as st
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -10,6 +12,24 @@ from django.db.models.functions import Round, Cast
 from benchmark.forms import ConfiguracaoBenchmarkForm
 from benchmark.models import ExecucaoBenchmark, ResultadoExecucao
 from benchmark.services import dados_grafico, iniciar_execucao_assincrona, medias_por_combinacao, _filtrar_outliers
+
+
+def _calcular_ic95(valores):
+    """Calcula o intervalo de confiança de 95% para a média de uma amostra.
+
+    Retorna (lower, upper) arredondados com 3 casas decimais.
+    Usa Z=2 (aproximação normal), alinhado com analisar_resultados_estatistico.py.
+    """
+    n = len(valores)
+    if n < 2:
+        media = valores[0] if n == 1 else 0
+        return (round(media, 3), round(media, 3))
+    media = statistics.fmean(valores)
+    s = statistics.stdev(valores)
+    z_crit = 2.0
+    erro_padrao = s / (n ** 0.5)
+    margem = z_crit * erro_padrao
+    return (round(media - margem, 3), round(media + margem, 3))
 
 
 def pagina_inicial(request):
@@ -97,82 +117,52 @@ def comparar_algoritmos(request):
     grupos = defaultdict(list)
 
     for r in resultados:
-        chave = (r.algoritmo, r.condicao, r.tamanho, r.execucao.repeticoes)
+        chave = (r.algoritmo, r.condicao, r.tamanho, r.execucao.repeticoes, r.execucao.permitir_repetidos)
         grupos[chave].append(r)
 
     medias = []
-    for (algoritmo, condicao, tamanho, _rep), itens in grupos.items():
+    for (algoritmo, condicao, tamanho, _rep, _permitir_rep), itens in grupos.items():
         tempos = [r.tempo_ms for r in itens]
         comparacoes = [r.comparacoes for r in itens]
 
-        media_tempo = round(sum(tempos) / len(tempos), 2)
-        media_comp = round(sum(comparacoes) / len(comparacoes), 2)
+        media_tempo = round(sum(tempos) / len(tempos), 3)
+        media_comp = round(sum(comparacoes) / len(comparacoes), 3)
 
-        desvio_tempo = round(statistics.stdev(tempos), 2) if len(tempos) > 1 else 0
-        desvio_comp = round(statistics.stdev(comparacoes), 2) if len(comparacoes) > 1 else 0
-
-        cv_tempo = round((desvio_tempo / media_tempo * 100), 2) if media_tempo > 0 else 0
-        cv_comp = round((desvio_comp / media_comp * 100), 2) if media_comp > 0 else 0
-
-        if cv_tempo <= 10:
-            classe_cv_tempo = 'Muito Baixa Variação'
-        elif cv_tempo <= 20:
-            classe_cv_tempo = 'Moderada Variação'
-        elif cv_tempo <= 30:
-            classe_cv_tempo = 'Alta Variação'
-        else:
-            classe_cv_tempo = 'Variação Muito Alta'
-
-        if cv_comp <= 10:
-            classe_cv_comp = 'Muito Baixa Variação'
-        elif cv_comp <= 20:
-            classe_cv_comp = 'Moderada Variação'
-        elif cv_comp <= 30:
-            classe_cv_comp = 'Alta Variação'
-        else:
-            classe_cv_comp = 'Variação Muito Alta'
+        desvio_tempo = round(statistics.stdev(tempos), 3) if len(tempos) > 1 else 0
+        desvio_comp = round(statistics.stdev(comparacoes), 3) if len(comparacoes) > 1 else 0
 
         # ---- Versao sem outliers (filtrada) ----
-        tempos_filtrados, removeu_tempo = _filtrar_outliers(tempos)
-        comps_filtrados, removeu_comp = _filtrar_outliers(comparacoes)
+        tempos_filtrados, _, qtd_out_tempo = _filtrar_outliers(tempos)
+        comps_filtrados, _, qtd_out_comp = _filtrar_outliers(comparacoes)
 
-        if removeu_tempo and len(tempos_filtrados) >= 2:
-            media_tempo_filt = round(sum(tempos_filtrados) / len(tempos_filtrados), 2)
-            desvio_tempo_filt = round(statistics.stdev(tempos_filtrados), 2)
-            cv_tempo_filt = round((desvio_tempo_filt / media_tempo_filt * 100), 2) if media_tempo_filt > 0 else 0
-            classe_cv_tempo_filt = (
-                'Muito Baixa Variação' if cv_tempo_filt <= 10 else
-                'Moderada Variação' if cv_tempo_filt <= 20 else
-                'Alta Variação' if cv_tempo_filt <= 30 else
-                'Variação Muito Alta'
-            )
+        if qtd_out_tempo > 0 and len(tempos_filtrados) >= 2:
+            media_tempo_filt = round(sum(tempos_filtrados) / len(tempos_filtrados), 3)
+            desvio_tempo_filt = round(statistics.stdev(tempos_filtrados), 3)
         else:
             media_tempo_filt = media_tempo
             desvio_tempo_filt = desvio_tempo
-            cv_tempo_filt = cv_tempo
-            classe_cv_tempo_filt = classe_cv_tempo
-            removeu_tempo = False
+            qtd_out_tempo = 0
 
-        if removeu_comp and len(comps_filtrados) >= 2:
-            media_comp_filt = round(sum(comps_filtrados) / len(comps_filtrados), 2)
-            desvio_comp_filt = round(statistics.stdev(comps_filtrados), 2)
-            cv_comp_filt = round((desvio_comp_filt / media_comp_filt * 100), 2) if media_comp_filt > 0 else 0
-            classe_cv_comp_filt = (
-                'Muito Baixa Variação' if cv_comp_filt <= 10 else
-                'Moderada Variação' if cv_comp_filt <= 20 else
-                'Alta Variação' if cv_comp_filt <= 30 else
-                'Variação Muito Alta'
-            )
+        if qtd_out_comp > 0 and len(comps_filtrados) >= 2:
+            media_comp_filt = round(sum(comps_filtrados) / len(comps_filtrados), 3)
+            desvio_comp_filt = round(statistics.stdev(comps_filtrados), 3)
         else:
             media_comp_filt = media_comp
             desvio_comp_filt = desvio_comp
-            cv_comp_filt = cv_comp
-            classe_cv_comp_filt = classe_cv_comp
-            removeu_comp = False
+            qtd_out_comp = 0
 
         n_original = len(itens)
-        n_filtrado_tempo = len(tempos_filtrados) if removeu_tempo else n_original
-        n_filtrado_comp = len(comps_filtrados) if removeu_comp else n_original
+        n_filtrado_tempo = len(tempos_filtrados) if qtd_out_tempo > 0 else n_original
+        n_filtrado_comp = len(comps_filtrados) if qtd_out_comp > 0 else n_original
+
+        # IC 95% para tempos e comparacoes (original e filtrado)
+        ic95_tempo_lower, ic95_tempo_upper = _calcular_ic95(tempos)
+        ic95_comp_lower, ic95_comp_upper = _calcular_ic95(comparacoes)
+
+        tempos_para_ic95 = tempos_filtrados if qtd_out_tempo > 0 and len(tempos_filtrados) >= 2 else tempos
+        comps_para_ic95 = comps_filtrados if qtd_out_comp > 0 and len(comps_filtrados) >= 2 else comparacoes
+        ic95_tempo_filt_lower, ic95_tempo_filt_upper = _calcular_ic95(tempos_para_ic95)
+        ic95_comp_filt_lower, ic95_comp_filt_upper = _calcular_ic95(comps_para_ic95)
 
         amostra = itens[0]
         permitir_repetidos = amostra.execucao.permitir_repetidos
@@ -187,25 +177,25 @@ def comparar_algoritmos(request):
             # Original
             'media_tempo_ms': media_tempo,
             'desvio_tempo_ms': desvio_tempo,
-            'cv_tempo_pct': cv_tempo,
-            'classe_cv_tempo': classe_cv_tempo,
+            'ic95_tempo_lower': ic95_tempo_lower,
+            'ic95_tempo_upper': ic95_tempo_upper,
             'media_comparacoes': media_comp,
             'desvio_comparacoes': desvio_comp,
-            'cv_comparacoes_pct': cv_comp,
-            'classe_cv_comparacoes': classe_cv_comp,
+            'ic95_comp_lower': ic95_comp_lower,
+            'ic95_comp_upper': ic95_comp_upper,
             # Filtrado (sem outliers)
             'media_tempo_ms_filt': media_tempo_filt,
             'desvio_tempo_ms_filt': desvio_tempo_filt,
-            'cv_tempo_pct_filt': cv_tempo_filt,
-            'classe_cv_tempo_filt': classe_cv_tempo_filt,
+            'ic95_tempo_filt_lower': ic95_tempo_filt_lower,
+            'ic95_tempo_filt_upper': ic95_tempo_filt_upper,
             'n_filtrado_tempo': n_filtrado_tempo,
-            'removeu_outliers_tempo': removeu_tempo,
+            'removeu_outliers_tempo': qtd_out_tempo > 0,
             'media_comparacoes_filt': media_comp_filt,
             'desvio_comparacoes_filt': desvio_comp_filt,
-            'cv_comparacoes_pct_filt': cv_comp_filt,
-            'classe_cv_comparacoes_filt': classe_cv_comp_filt,
+            'ic95_comp_filt_lower': ic95_comp_filt_lower,
+            'ic95_comp_filt_upper': ic95_comp_filt_upper,
             'n_filtrado_comp': n_filtrado_comp,
-            'removeu_outliers_comp': removeu_comp,
+            'removeu_outliers_comp': qtd_out_comp > 0,
         })
 
     repeticoes_disponiveis = sorted(set(m['repeticoes'] for m in medias))

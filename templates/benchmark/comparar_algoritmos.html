@@ -89,9 +89,10 @@
                 <th>Condição</th>
                 <th>Tamanho</th>
                 <th>Média tempo (ms)</th>
+                <th>IC 95% Tempo</th>
                 <th>DP tempo (ms)</th>
-                <th>CV tempo (%)</th>
                 <th>Média comparações</th>
+                <th>IC 95% Comp.</th>
                 <th>Vetor com itens repetidos</th>
               </tr>
             </thead>
@@ -203,19 +204,19 @@ function montarComparacaoGrandes() {
         comparacoes: [],
         desvios_tempo: [],
         desvios_comparacoes: [],
-        cvs_tempo: [],
-        cvs_comparacoes: [],
-        classes_cv_tempo: [],
-        classes_cv_comparacoes: [],
+        ic95_tempo_lower: [],
+        ic95_tempo_upper: [],
+        ic95_comp_lower: [],
+        ic95_comp_upper: [],
         // Filtrado (sem outliers)
         tempos_filt: [],
         comparacoes_filt: [],
         desvios_tempo_filt: [],
         desvios_comparacoes_filt: [],
-        cvs_tempo_filt: [],
-        cvs_comparacoes_filt: [],
-        classes_cv_tempo_filt: [],
-        classes_cv_comparacoes_filt: []
+        ic95_tempo_filt_lower: [],
+        ic95_tempo_filt_upper: [],
+        ic95_comp_filt_lower: [],
+        ic95_comp_filt_upper: []
       };
     }
 
@@ -223,19 +224,19 @@ function montarComparacaoGrandes() {
     mapaSeries.get(chave)[item.tamanho].comparacoes.push(Number(item.media_comparacoes));
     mapaSeries.get(chave)[item.tamanho].desvios_tempo.push(Number(item.desvio_tempo_ms || 0));
     mapaSeries.get(chave)[item.tamanho].desvios_comparacoes.push(Number(item.desvio_comparacoes || 0));
-    mapaSeries.get(chave)[item.tamanho].cvs_tempo.push(Number(item.cv_tempo_pct || 0));
-    mapaSeries.get(chave)[item.tamanho].cvs_comparacoes.push(Number(item.cv_comparacoes_pct || 0));
-    mapaSeries.get(chave)[item.tamanho].classes_cv_tempo.push(item.classe_cv_tempo || '');
-    mapaSeries.get(chave)[item.tamanho].classes_cv_comparacoes.push(item.classe_cv_comparacoes || '');
+    mapaSeries.get(chave)[item.tamanho].ic95_tempo_lower.push(Number(item.ic95_tempo_lower));
+    mapaSeries.get(chave)[item.tamanho].ic95_tempo_upper.push(Number(item.ic95_tempo_upper));
+    mapaSeries.get(chave)[item.tamanho].ic95_comp_lower.push(Number(item.ic95_comp_lower));
+    mapaSeries.get(chave)[item.tamanho].ic95_comp_upper.push(Number(item.ic95_comp_upper));
+    mapaSeries.get(chave)[item.tamanho].ic95_tempo_filt_lower.push(Number(item.ic95_tempo_filt_lower));
+    mapaSeries.get(chave)[item.tamanho].ic95_tempo_filt_upper.push(Number(item.ic95_tempo_filt_upper));
+    mapaSeries.get(chave)[item.tamanho].ic95_comp_filt_lower.push(Number(item.ic95_comp_filt_lower));
+    mapaSeries.get(chave)[item.tamanho].ic95_comp_filt_upper.push(Number(item.ic95_comp_filt_upper));
     // Filtrado (sem outliers)
     mapaSeries.get(chave)[item.tamanho].tempos_filt.push(Number(item.media_tempo_ms_filt));
     mapaSeries.get(chave)[item.tamanho].comparacoes_filt.push(Number(item.media_comparacoes_filt));
     mapaSeries.get(chave)[item.tamanho].desvios_tempo_filt.push(Number(item.desvio_tempo_ms_filt || 0));
     mapaSeries.get(chave)[item.tamanho].desvios_comparacoes_filt.push(Number(item.desvio_comparacoes_filt || 0));
-    mapaSeries.get(chave)[item.tamanho].cvs_tempo_filt.push(Number(item.cv_tempo_pct_filt || 0));
-    mapaSeries.get(chave)[item.tamanho].cvs_comparacoes_filt.push(Number(item.cv_comparacoes_pct_filt || 0));
-    mapaSeries.get(chave)[item.tamanho].classes_cv_tempo_filt.push(item.classe_cv_tempo_filt || '');
-    mapaSeries.get(chave)[item.tamanho].classes_cv_comparacoes_filt.push(item.classe_cv_comparacoes_filt || '');
   }
 
   const coresBase = [
@@ -259,11 +260,11 @@ function montarComparacaoGrandes() {
       borderWidth: 3,
       pointRadius: 4,
       pointHoverRadius: 7,
-      // Metadados por ponto para tooltip (desvio, cv, classe)
+      // Metadados por ponto para tooltip (desvio, ic95)
       _extra: tamanhos.map(t => ({
         desvios: porTamanho[t]?.desvios_tempo || [],
-        cvs: porTamanho[t]?.cvs_tempo || [],
-        classes: porTamanho[t]?.classes_cv_tempo || []
+        ic95_lower: media(porTamanho[t]?.ic95_tempo_lower || []),
+        ic95_upper: media(porTamanho[t]?.ic95_tempo_upper || [])
       }))
     });
 
@@ -278,11 +279,11 @@ function montarComparacaoGrandes() {
       pointRadius: 3,
       pointHoverRadius: 6,
       _isComparacoes: true,
-      // Metadados por ponto para tooltip (desvio, cv, classe)
+      // Metadados por ponto para tooltip (desvio, ic95)
       _extra: tamanhos.map(t => ({
         desvios: porTamanho[t]?.desvios_comparacoes || [],
-        cvs: porTamanho[t]?.cvs_comparacoes || [],
-        classes: porTamanho[t]?.classes_cv_comparacoes || []
+        ic95_lower: media(porTamanho[t]?.ic95_comp_lower || []),
+        ic95_upper: media(porTamanho[t]?.ic95_comp_upper || [])
       }))
     });
 
@@ -319,23 +320,20 @@ function montarComparacaoGrandes() {
               label: function(ctx) {
                 const valor = Number(ctx.parsed.y);
                 const extra = ctx.dataset._extra?.[ctx.dataIndex];
-                let desvio = 0, cv = 0, classe = '';
+                let ic95_lower = null, ic95_upper = null;
 
                 if (extra) {
-                  desvio = media(extra.desvios) || 0;
-                  cv = media(extra.cvs) || 0;
-                  classe = extra.classes[0] || '';
+                  ic95_lower = extra.ic95_lower;
+                  ic95_upper = extra.ic95_upper;
                 }
 
-                let linha = `${ctx.dataset.label}: ${valor.toLocaleString('pt-BR', {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2
-                })}`;
+                const fmtValor = (v, d = 3) =>
+                  v != null ? v.toLocaleString('pt-BR', { minimumFractionDigits: d, maximumFractionDigits: d }) : '?';
 
-                if (!ctx.dataset._isComparacoes) {
-                  if (desvio > 0 || cv > 0) {
-                    linha += ` (± ${desvio.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} | CV ${cv.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}% - ${classe})`;
-                  }
+                let linha = `${ctx.dataset.label}: ${fmtValor(valor)}`;
+
+                if (ic95_lower != null && ic95_upper != null) {
+                  linha += ` [IC 95%: ${fmtValor(ic95_lower)} – ${fmtValor(ic95_upper)}]`;
                 }
 
                 return linha;
@@ -382,8 +380,8 @@ function montarComparacaoGrandes() {
       pointHoverRadius: 7,
       _extra: tamanhos.map(t => ({
         desvios: porTamanho[t]?.desvios_tempo_filt || [],
-        cvs: porTamanho[t]?.cvs_tempo_filt || [],
-        classes: porTamanho[t]?.classes_cv_tempo_filt || []
+        ic95_lower: media(porTamanho[t]?.ic95_tempo_filt_lower || []),
+        ic95_upper: media(porTamanho[t]?.ic95_tempo_filt_upper || [])
       }))
     });
 
@@ -400,8 +398,8 @@ function montarComparacaoGrandes() {
       _isComparacoes: true,
       _extra: tamanhos.map(t => ({
         desvios: porTamanho[t]?.desvios_comparacoes_filt || [],
-        cvs: porTamanho[t]?.cvs_comparacoes_filt || [],
-        classes: porTamanho[t]?.classes_cv_comparacoes_filt || []
+        ic95_lower: media(porTamanho[t]?.ic95_comp_filt_lower || []),
+        ic95_upper: media(porTamanho[t]?.ic95_comp_filt_upper || [])
       }))
     });
 
@@ -438,23 +436,20 @@ function montarComparacaoGrandes() {
               label: function(ctx) {
                 const valor = Number(ctx.parsed.y);
                 const extra = ctx.dataset._extra?.[ctx.dataIndex];
-                let desvio = 0, cv = 0, classe = '';
+                let ic95_lower = null, ic95_upper = null;
 
                 if (extra) {
-                  desvio = media(extra.desvios) || 0;
-                  cv = media(extra.cvs) || 0;
-                  classe = extra.classes[0] || '';
+                  ic95_lower = extra.ic95_lower;
+                  ic95_upper = extra.ic95_upper;
                 }
 
-                let linha = `${ctx.dataset.label}: ${valor.toLocaleString('pt-BR', {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2
-                })}`;
+                const fmtValor = (v, d = 3) =>
+                  v != null ? v.toLocaleString('pt-BR', { minimumFractionDigits: d, maximumFractionDigits: d }) : '?';
 
-                if (!ctx.dataset._isComparacoes) {
-                  if (desvio > 0 || cv > 0) {
-                    linha += ` (± ${desvio.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} | CV ${cv.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}% - ${classe})`;
-                  }
+                let linha = `${ctx.dataset.label}: ${fmtValor(valor)}`;
+
+                if (ic95_lower != null && ic95_upper != null) {
+                  linha += ` [IC 95%: ${fmtValor(ic95_lower)} – ${fmtValor(ic95_upper)}]`;
                 }
 
                 return linha;
@@ -502,7 +497,7 @@ function montarTabelaSemOutliers() {
   const resumoEl = document.getElementById('resumoTabela');
 
   if (!filtradosGlobal.length) {
-    tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">Nenhum dado disponível com os filtros atuais.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted">Nenhum dado disponível com os filtros atuais.</td></tr>';
     resumoEl.textContent = '';
     return;
   }
@@ -514,7 +509,7 @@ function montarTabelaSemOutliers() {
     return a.tamanho - b.tamanho;
   });
 
-  const fmt = (val, decimais = 2) =>
+  const fmt = (val, decimais = 3) =>
     val != null
       ? Number(val).toLocaleString('pt-BR', {
           minimumFractionDigits: decimais,
@@ -529,9 +524,10 @@ function montarTabelaSemOutliers() {
     html += `<td>${item.condicao}</td>`;
     html += `<td>${Number(item.tamanho).toLocaleString('pt-BR')}</td>`;
     html += `<td>${fmt(item.media_tempo_ms_filt)}</td>`;
+    html += `<td>${fmt(item.ic95_tempo_filt_lower)} – ${fmt(item.ic95_tempo_filt_upper)}</td>`;
     html += `<td>${fmt(item.desvio_tempo_ms_filt)}</td>`;
-    html += `<td>${fmt(item.cv_tempo_pct_filt)}</td>`;
-    html += `<td>${fmt(item.media_comparacoes_filt, 0)}</td>`;
+    html += `<td>${fmt(item.media_comparacoes_filt, 3)}</td>`;
+    html += `<td>${fmt(item.ic95_comp_filt_lower)} – ${fmt(item.ic95_comp_filt_upper)}</td>`;
     html += `<td>${item.permitir_repetidos ? '<span class="badge text-bg-info">Sim</span>' : '<span class="badge text-bg-light">Não</span>'}</td>`;
     html += '</tr>';
   }

@@ -31,7 +31,7 @@
             <th>Tamanho</th>
             <th>Média tempo (ms)</th>
             <th>Desvio padrão tempo (ms)</th>
-            <th>CV tempo (s/ outliers)</th>
+            <th>IC95% Tempo</th>
             <th>Média comparações</th>
             <th>Números repeditos?</th>
           </tr>
@@ -42,10 +42,10 @@
             <td>{{ m.algoritmo }}</td>
             <td>{{ m.condicao }}</td>
             <td>{{ m.tamanho|intcomma }}</td>
-            <td>{{ m.media_tempo_ms|floatformat:2|intcomma }}</td>
-            <td>±{{ m.desvio_tempo_ms|floatformat:2|intcomma }}</td>
-            <td>{{ m.cv_tempo_pct_filt|floatformat:2 }}% ({{ m.classe_cv_tempo_filt }})</td>
-            <td>{{ m.media_comparacoes|floatformat:2|intcomma }}</td>
+            <td>{{ m.media_tempo_ms|floatformat:3|intcomma }}</td>
+            <td>±{{ m.desvio_tempo_ms|floatformat:3|intcomma }}</td>
+            <td>[{{ m.ic95_tempo_lower|floatformat:3|intcomma }}, {{ m.ic95_tempo_upper|floatformat:3|intcomma }}]</td>
+            <td>{{ m.media_comparacoes|floatformat:3|intcomma }}</td>
             <td>
               {% if execucao.permitir_repetidos %}
                 <span class="badge text-bg-info">Sim</span>
@@ -124,8 +124,8 @@
             <td>{{ r.condicao }}</td>
             <td>{{ r.tamanho|intcomma }}</td>
             <td>{{ r.rodada|intcomma }}</td>
-            <td>{{ r.tempo_ms|floatformat:2|intcomma }}</td>
-            <td>{{ r.comparacoes|floatformat:2|intcomma }}</td>
+            <td>{{ r.tempo_ms|floatformat:3|intcomma }}</td>
+            <td>{{ r.comparacoes|floatformat:3|intcomma }}</td>
             <td>
               {% if execucao.permitir_repetidos %}
                 <span class="badge text-bg-info">Sim</span>
@@ -156,7 +156,7 @@ document.addEventListener('DOMContentLoaded', function () {
         meta.data.forEach((element, index) => {
           const valor = dataset.data[index];
           if (valor == null) return;
-          const texto = Number(valor).toLocaleString('pt-BR', { maximumFractionDigits: 2 });
+           const texto = Number(valor).toLocaleString('pt-BR', { maximumFractionDigits: 3 });
           ctx.font = '11px sans-serif';
           ctx.fillStyle = '#1f2937';
           ctx.textAlign = 'center';
@@ -206,10 +206,7 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 
   const format = (v) =>
-    Number(v).toLocaleString('pt-BR', { maximumFractionDigits: 2 });
-
-  const percentual = (desvio, media) =>
-    (media > 0 ? (desvio / media) * 100 : 0);
+    Number(v).toLocaleString('pt-BR', { maximumFractionDigits: 3 });
 
   // ===== TEMPO =====
   new Chart(document.getElementById('graficoTempo'), {
@@ -233,10 +230,11 @@ document.addEventListener('DOMContentLoaded', function () {
               const i = ctx.dataIndex;
               const media = dataTempo[i];
               const desvio = desviosTempo[i];
-              const perc = percentual(desvio, media);
-              const classe = (perc <= 10) ? 'Muito Baixa Variação' : (perc <= 20 ? 'Moderada Variação' : (perc <= 30 ? 'Alta Variação' : 'Variação Muito Alta'));
+              const n = 30;
+              const icLow = media - 2.0 * (desvio / Math.sqrt(n));
+              const icHigh = media + 2.0 * (desvio / Math.sqrt(n));
 
-              return `Média: ${format(media)} ms (± ${format(desvio)} | CV ${format(perc)}% - ${classe})`;
+              return `Média: ${format(media)} ms\n± ${format(desvio)} | IC95% [${format(icLow)}, ${format(icHigh)}]`;
             }
           }
         }
@@ -318,10 +316,11 @@ document.addEventListener('DOMContentLoaded', function () {
               const i = ctx.dataIndex;
               const media_filt = dataTempoFilt[i];
               const desvio_filt = desviosTempoFilt[i];
-              const perc = percentual(desvio_filt, media_filt);
-              const classe = (perc <= 10) ? 'Muito Baixa Variação' : (perc <= 20 ? 'Moderada Variação' : (perc <= 30 ? 'Alta Variação' : 'Variação Muito Alta'));
+              const n = 30;
+              const icLow = media_filt - 2.0 * (desvio_filt / Math.sqrt(n));
+              const icHigh = media_filt + 2.0 * (desvio_filt / Math.sqrt(n));
 
-              return `Média (s/ outliers): ${format(media_filt)} ms (± ${format(desvio_filt)} | CV ${format(perc)}% - ${classe})`;
+              return `Média (s/ outliers): ${format(media_filt)} ms\n± ${format(desvio_filt)} | IC95% [${format(icLow)}, ${format(icHigh)}]`;
             }
           }
         }
