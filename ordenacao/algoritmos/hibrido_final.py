@@ -4,21 +4,22 @@ from .insertionsort import ordenar_insertionsort
 from .quicksort import ordenar_quicksort
 
 
-def ordenar_hibrido_final(vetor, permitir_repetidos=False):
+def ordenar_hibrido_final(vetor):
     """
     Algoritmo Hibrido de Ordenacao (AOH) - Versao Final.
 
     Estrategia:
       1. Varredura O(n) para diagnostico: verifica se o vetor ja esta
-         ordenado crescentemente, conta comparacoes da varredura e,
-         quando ha elementos repetidos, coleta min/max para decidir
-         sobre o uso do Counting Sort.
+         ordenado crescentemente, detecta se ha elementos repetidos,
+         coleta min/max e conta comparacoes da varredura — TUDO em
+         uma unica passada.
       2. Se o vetor ja estiver crescente, retorna imediatamente com
          o numero de comparacoes da varredura.
       3. Caso contrario:
-         a) Se permitir_repetidos=True e intervalo k = max - min + 1
-            for suficientemente pequeno (k <= n * log2(n) / 2),
-            utiliza Counting Sort (O(n+k) linear).
+         a) Se houver elementos repetidos detectados na varredura
+            E o intervalo k = max - min + 1 for suficientemente
+            pequeno (k <= n * log2(n) / 2), utiliza Counting Sort
+            (O(n+k) linear, zero comparacoes adicionais).
          b) Se n <= 50, utiliza Insertion Sort (secundario para
             entradas muito pequenas, onde o overhead do Quicksort
             nao compensa).
@@ -27,7 +28,17 @@ def ordenar_hibrido_final(vetor, permitir_repetidos=False):
             para entradas aleatorias e decrescentes em ambos os
             cenarios (com e sem elementos repetidos).
 
-    Anãlise dos dados (10 tamanhos x 3 condicoes, 10 repeticoes cada, totalizando 2630 resultados):
+    Deteccao automatica de duplicatas:
+      Durante a varredura O(n), um set (tabela hash) e usado para
+      detectar se ha elementos repetidos no vetor. A operacao
+      'elemento in set' tem custo O(1) amortizado 
+      e NAO constitui uma comparacao entre elementos do vetor —
+      portanto nao e contabilizada no total de comparacoes.
+      Isso torna o algoritmo generico:
+      - Se o vetor tem duplicados e o intervalo k e pequeno → Counting Sort
+      - Se o vetor NAO tem duplicaods → Quicksort (ou Insertion para n<=50)
+
+    Analise dos dados (10 tamanhos x 3 condicoes, 10 repeticoes cada, totalizando 2630 resultados):
       - Quicksort: melhor tempo medio para a maioria dos cenarios
         (aleatorio e decrescente) a partir de n >= 500. Para n=50/100,
         Insertion Sort e competitivo.
@@ -47,8 +58,6 @@ def ordenar_hibrido_final(vetor, permitir_repetidos=False):
 
     Parametros:
       vetor: lista de inteiros a ser ordenada.
-      permitir_repetidos: booleano indicando se o vetor pode conter
-                          elementos repetidos (default=False).
 
     Retorna:
       (vetor_ordenado, comparacoes): tupla com o vetor ordenado e
@@ -60,21 +69,23 @@ def ordenar_hibrido_final(vetor, permitir_repetidos=False):
 
     if n <= 1:
         return arr, 0
-    #TODO: verificar uma forma de detectar o caso de elementos repetidos sem
-    # precisar da flag permitir_repetidos, para nao penalizar o caso sem repetidos. 
-    # Talvez uma varredura inicial O(n) que detecta se ha repetidos e coleta min/max, 
-    # e entao decide sobre o uso do Counting Sort. 
-    # Assim, o algoritmo se adaptaria dinamicamente a ambos os casos, sem exigir um parametro externo.
 
     # ---------------------------------------------------------------
     # Etapa 1: Varredura de diagnostico O(n)
-    # Verifica se o vetor ja esta ordenado em ordem crescente e,
-    # quando permitir_repetidos=True, coleta min e max para
-    # decidir sobre o Counting Sort.
+    # Em UMA unica passada, coleta simultaneamente:
+    #   - Se o vetor ja esta ordenado crescentemente
+    #   - Valor minimo e maximo (para calcular k = max - min + 1)
+    #   - Se ha elementos repetidos (via set, O(1) amortizado por lookup)
+    # Apenas a comparacao arr[i] < arr[i-1] e contabilizada.
     # ---------------------------------------------------------------
     ordenado_crescente = True
     minimo = arr[0]
     maximo = arr[0]
+    vistos = set()
+    tem_repetidos = False
+
+    # O primeiro elemento tambem precisa ser registrado no set
+    vistos.add(arr[0])
 
     for i in range(1, n):
         comparacoes += 1
@@ -85,6 +96,12 @@ def ordenar_hibrido_final(vetor, permitir_repetidos=False):
             minimo = arr[i]
         if arr[i] > maximo:
             maximo = arr[i]
+
+        # Deteccao de duplicatas: O(1) amortizado, nao e comparacao entre elementos
+        if arr[i] in vistos:
+            tem_repetidos = True
+        else:
+            vistos.add(arr[i])
 
     # ---------------------------------------------------------------
     # Etapa 2: Se ja estiver crescente, retorna imediatamente.
@@ -97,7 +114,7 @@ def ordenar_hibrido_final(vetor, permitir_repetidos=False):
     # ---------------------------------------------------------------
 
     # 3a. Counting Sort para vetores com repetidos e intervalo pequeno.
-    if permitir_repetidos:
+    if tem_repetidos:
         k = maximo - minimo + 1
         # Threshold: so usa Counting Sort se O(n+k) < O(n log n)/2
         # n * log2(n) / 2 e um limite conservador que garante vantagem

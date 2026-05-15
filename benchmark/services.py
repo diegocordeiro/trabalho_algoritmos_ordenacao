@@ -141,17 +141,11 @@ def executar_benchmark(execucao_id):
                             vetor_entrada = _gerar_vetor(condicao, int(tamanho))
                         # Captura timestamp de inicio em alta resolucao.
                         inicio = time.perf_counter()
-                        #TODO: verificar uma forma de detectar o caso de elementos repetidos sem
-                        # precisar da flag permitir_repetidos, para nao penalizar o caso sem repetidos. 
-                        # Talvez uma varredura inicial O(n) que detecta se ha repetidos e coleta min/max, 
-                        # e entao decide sobre o uso do Counting Sort. 
-                        # Assim, o algoritmo se adaptaria dinamicamente a ambos os casos, sem exigir um parametro externo
-                        # removendo a comparação com a flag 'hibrido_final'
                         # Executa algoritmo e captura quantidade de comparacoes retornada.
-                        if algoritmo_nome == 'hibrido_final':
-                            _, comparacoes = funcao_ordenacao(vetor_entrada, execucao.permitir_repetidos)
-                        else:
-                            _, comparacoes = funcao_ordenacao(vetor_entrada)
+                        # Todos os algoritmos possuem a mesma assinatura.
+                        # O hibrido_final detecta automaticamente se ha elementos
+                        # repetidos via set() na varredura O(n), sem precisar de flag.
+                        _, comparacoes = funcao_ordenacao(vetor_entrada)
                         # Captura timestamp de fim em alta resolucao.
                         fim = time.perf_counter()
                         # Persiste resultado unitario da rodada atual no banco.
