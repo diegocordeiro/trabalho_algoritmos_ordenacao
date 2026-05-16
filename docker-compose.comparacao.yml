@@ -18,7 +18,7 @@ services:
       - ./staticfiles:/app/staticfiles
       # Media (se necessario)
       - ./media:/app/media
-    mem_limit: 128m
+    mem_limit: 512m
     networks:
       - prod_net
     # Porta exposta apenas para debug local; em producao o nginx faz o proxy
