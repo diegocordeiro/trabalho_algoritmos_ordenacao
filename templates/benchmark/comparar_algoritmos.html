@@ -21,7 +21,7 @@
      <div class="row g-3 mb-3">
        <div class="col-md-2">
          <label class="form-label">Tamanho mínimo</label>
-         <input id="filtroTamanhoMinimo" type="number" class="form-control" value="100" min="1">
+         <input id="filtroTamanhoMinimo" type="number" class="form-control" value="0" min="1">
        </div>
 
        <div class="col-md-2">
@@ -66,6 +66,15 @@
       <div class="card-body">
         <h3 class="h6">Tempo x Comparações (Escala Logarítmica)</h3>
         <canvas id="graficoComparacaoUnificado"></canvas>
+        <div id="legendaUnificado" class="mt-3"></div>
+        <div class="d-flex gap-2 mt-2">
+          <button class="btn btn-success btn-sm" onclick="exportarPNG('graficoComparacaoUnificado', 'comparacao_unificado')">
+            Exportar PNG
+          </button>
+          <button class="btn btn-primary btn-sm" onclick="copiarParaClipboard('graficoComparacaoUnificado')">
+            Copiar para área de transferência
+          </button>
+        </div>
       </div>
     </div>
 
@@ -74,6 +83,15 @@
       <div class="card-body">
         <h3 class="h6">Tempo x Comparações - Sem Outliers (Escala Logarítmica)</h3>
         <canvas id="graficoComparacaoSemOutliers"></canvas>
+        <div id="legendaSemOutliers" class="mt-3"></div>
+        <div class="d-flex gap-2 mt-2">
+          <button class="btn btn-success btn-sm" onclick="exportarPNG('graficoComparacaoSemOutliers', 'comparacao_sem_outliers')">
+            Exportar PNG
+          </button>
+          <button class="btn btn-primary btn-sm" onclick="copiarParaClipboard('graficoComparacaoSemOutliers')">
+            Copiar para área de transferência
+          </button>
+        </div>
       </div>
     </div>
 
@@ -165,6 +183,155 @@ filtroCondicaoEl.innerHTML =
   condicoesDisponiveis.map(c => `<option value="${c}">${c}</option>`).join('');
 
 /* =========================
+   LEGENDA HTML CUSTOMIZADA
+========================= */
+function montarLegendaHTML(chart, container, coresOriginais) {
+  const datasets = chart.data.datasets;
+  const N = datasets.length;
+  const numAlgos = N / 2;
+  const COLUNAS = 3;
+  const numLinhas = Math.ceil(numAlgos / COLUNAS);
+
+  const nomesAlgo = [];
+  for (let i = 0; i < N; i += 2) {
+    const nome = datasets[i].label.replace(/\s*\(tempo\).*/, '');
+    nomesAlgo.push(nome);
+  }
+
+  const chartId = container.id;
+
+  function itemTempo(idx) {
+    return `<input type="checkbox" class="leg-tempo-chk" data-chart="${chartId}" data-dataset="${idx * 2}" checked ` +
+           `onchange="toggleDataset('${chartId}', ${idx * 2}, this.checked)"> ` +
+           `<span style="display:inline-block;width:14px;height:14px;border-radius:50%;` +
+           `background:${coresOriginais[idx].tempo};vertical-align:middle;margin-right:4px;"></span>` +
+           `<span style="font-size:12px;font-weight:bold;">${nomesAlgo[idx]}</span>`;
+  }
+
+  function itemComp(idx) {
+    return `<input type="checkbox" class="leg-comp-chk" data-chart="${chartId}" data-dataset="${idx * 2 + 1}" checked ` +
+           `onchange="toggleDataset('${chartId}', ${idx * 2 + 1}, this.checked)"> ` +
+           `<span style="display:inline-block;width:16px;height:3px;background:${coresOriginais[idx].comp};` +
+           `vertical-align:middle;margin-right:4px;border-radius:2px;"></span>` +
+           `<span style="font-size:12px;">${nomesAlgo[idx]}</span>`;
+  }
+
+  const larguraCol = (100 / (COLUNAS * 2)).toFixed(2);
+
+  let html = '<table class="table table-sm mb-0" style="width:100%;table-layout:fixed;">';
+
+  // Cabeçalho
+  html += '<thead><tr>';
+
+  // Cabeçalho TEMPO (colspan=COLUNAS)
+  html += `<th colspan="${COLUNAS}" style="text-align:center;">`;
+  html += `<input type="checkbox" class="leg-tempo-all-${chartId}" checked onchange="toggleColuna('${chartId}', 'tempo', this.checked)"> `;
+  html += '<span class="fw-bold" style="font-size:13px;">TEMPO</span>';
+  html += '</th>';
+
+  // Cabeçalho COMPARAÇÕES (colspan=COLUNAS)
+  html += `<th colspan="${COLUNAS}" style="text-align:center;border-left:1px solid #dee2e6;">`;
+  html += `<input type="checkbox" class="leg-comp-all-${chartId}" checked onchange="toggleColuna('${chartId}', 'comp', this.checked)"> `;
+  html += '<span class="fw-bold" style="font-size:13px;">COMPARAÇÕES</span>';
+  html += '</th>';
+
+  html += '</tr></thead><tbody>';
+
+  for (let linha = 0; linha < numLinhas; linha++) {
+    html += '<tr>';
+
+    // Colunas TEMPO (3)
+    for (let c = 0; c < COLUNAS; c++) {
+      const idx = linha * COLUNAS + c;
+      html += `<td style="width:${larguraCol}%;white-space:nowrap;">`;
+      html += idx < numAlgos ? itemTempo(idx) : '';
+      html += '</td>';
+    }
+
+    // Colunas COMPARAÇÕES (3)
+    for (let c = 0; c < COLUNAS; c++) {
+      const idx = linha * COLUNAS + c;
+      const bordaComp = c === 0 ? 'border-left:1px solid #dee2e6;' : '';
+      html += `<td style="width:${larguraCol}%;white-space:nowrap;${bordaComp}">`;
+      html += idx < numAlgos ? itemComp(idx) : '';
+      html += '</td>';
+    }
+
+    html += '</tr>';
+  }
+
+  html += '</tbody></table>';
+  container.innerHTML = html;
+}
+
+function getChartPorContainer(chartId) {
+  if (chartId === 'legendaUnificado') return graficoComparacao;
+  if (chartId === 'legendaSemOutliers') return graficoSemOutliers;
+  return null;
+}
+
+function toggleDataset(chartId, datasetIndex, visible) {
+  const chart = getChartPorContainer(chartId);
+  if (!chart) return;
+  chart.setDatasetVisibility(datasetIndex, visible);
+  chart.update();
+  atualizarCheckAll(chartId);
+}
+
+function toggleColuna(chartId, tipo, checked) {
+  const chart = getChartPorContainer(chartId);
+  if (!chart) return;
+  const datasets = chart.data.datasets;
+  const N = datasets.length;
+
+  for (let i = 0; i < N; i++) {
+    const isTempo = (i % 2 === 0);
+    if (tipo === 'tempo' && isTempo) {
+      chart.setDatasetVisibility(i, checked);
+    }
+    if (tipo === 'comp' && !isTempo) {
+      chart.setDatasetVisibility(i, checked);
+    }
+  }
+  chart.update();
+
+  // Sincroniza checkboxes individuais do mesmo container
+  const container = document.getElementById(chartId);
+  if (container) {
+    const cls = tipo === 'tempo' ? '.leg-tempo-chk' : '.leg-comp-chk';
+    container.querySelectorAll(cls).forEach(chk => { chk.checked = checked; });
+  }
+  atualizarCheckAll(chartId);
+}
+
+function atualizarCheckAll(chartId) {
+  const chart = getChartPorContainer(chartId);
+  if (!chart) return;
+
+  const N = chart.data.datasets.length;
+
+  let todosTempoOn = true, todosTempoOff = true;
+  let todosCompOn = true, todosCompOff = true;
+
+  for (let i = 0; i < N; i++) {
+    const vis = chart.isDatasetVisible(i);
+    if (i % 2 === 0) {
+      if (vis) todosTempoOff = false; else todosTempoOn = false;
+    } else {
+      if (vis) todosCompOff = false; else todosCompOn = false;
+    }
+  }
+
+  const container = document.getElementById(chartId);
+  if (!container) return;
+
+  const tempoAll = container.querySelector(`.leg-tempo-all-${chartId}`);
+  const compAll = container.querySelector(`.leg-comp-all-${chartId}`);
+  if (tempoAll) { tempoAll.checked = todosTempoOn; tempoAll.indeterminate = !todosTempoOn && !todosTempoOff; }
+  if (compAll) { compAll.checked = todosCompOn; compAll.indeterminate = !todosCompOn && !todosCompOff; }
+}
+
+/* =========================
    GRÁFICO
 ========================= */
 function montarComparacaoGrandes() {
@@ -246,10 +413,13 @@ function montarComparacaoGrandes() {
 
   let i = 0;
   const datasets = [];
+  const coresUsadas = [];
 
   for (const [algoritmo, porTamanho] of mapaSeries.entries()) {
     const cor = coresBase[i % coresBase.length];
     const corEscura = escurecer(cor);
+
+    coresUsadas.push({ tempo: cor, comp: corEscura });
 
     datasets.push({
       label: `${algoritmo} (tempo)`,
@@ -260,7 +430,6 @@ function montarComparacaoGrandes() {
       borderWidth: 3,
       pointRadius: 4,
       pointHoverRadius: 7,
-      // Metadados por ponto para tooltip (desvio, ic95)
       _extra: tamanhos.map(t => ({
         desvios: porTamanho[t]?.desvios_tempo || [],
         ic95_lower: media(porTamanho[t]?.ic95_tempo_lower || []),
@@ -279,7 +448,6 @@ function montarComparacaoGrandes() {
       pointRadius: 3,
       pointHoverRadius: 6,
       _isComparacoes: true,
-      // Metadados por ponto para tooltip (desvio, ic95)
       _extra: tamanhos.map(t => ({
         desvios: porTamanho[t]?.desvios_comparacoes || [],
         ic95_lower: media(porTamanho[t]?.ic95_comp_lower || []),
@@ -307,14 +475,7 @@ function montarComparacaoGrandes() {
           intersect: false
         },
         plugins: {
-          legend: {
-            position: 'bottom',
-            labels: {
-              usePointStyle: true,
-              padding: 15,
-              font: { size: 12, weight: 'bold' }
-            }
-          },
+          legend: { display: false },
           tooltip: {
             callbacks: {
               label: function(ctx) {
@@ -360,6 +521,9 @@ function montarComparacaoGrandes() {
       }
     }
   );
+
+  // Monta legenda customizada para o primeiro gráfico
+  montarLegendaHTML(graficoComparacao, document.getElementById('legendaUnificado'), coresUsadas);
 
   // ===== GRÁFICO SEM OUTLIERS =====
   let js = 0;
@@ -423,14 +587,7 @@ function montarComparacaoGrandes() {
           intersect: false
         },
         plugins: {
-          legend: {
-            position: 'bottom',
-            labels: {
-              usePointStyle: true,
-              padding: 15,
-              font: { size: 12, weight: 'bold' }
-            }
-          },
+          legend: { display: false },
           tooltip: {
             callbacks: {
               label: function(ctx) {
@@ -477,6 +634,9 @@ function montarComparacaoGrandes() {
     }
   );
 
+  // Monta legenda customizada para o segundo gráfico
+  montarLegendaHTML(graficoSemOutliers, document.getElementById('legendaSemOutliers'), coresUsadas);
+
   // ===== NOVO RESUMO COM TOTAIS =====
   const totalTempo = filtrados.reduce((acc, item) => acc + Number(item.media_tempo_ms || 0), 0);
   const totalComparacoes = filtrados.reduce((acc, item) => acc + Number(item.media_comparacoes || 0), 0);
@@ -502,7 +662,6 @@ function montarTabelaSemOutliers() {
     return;
   }
 
-  // Ordenar por algoritmo, depois condicao, depois tamanho
   const ordenados = [...filtradosGlobal].sort((a, b) => {
     if (a.algoritmo !== b.algoritmo) return a.algoritmo.localeCompare(b.algoritmo);
     if (a.condicao !== b.condicao) return a.condicao.localeCompare(b.condicao);
@@ -555,10 +714,70 @@ function toggleTodosAlgoritmos() {
     chart.update();
   });
 
+  // Sincroniza checkboxes das legendas
+  document.querySelectorAll('#legendaUnificado input[type=checkbox], #legendaSemOutliers input[type=checkbox]').forEach(chk => {
+    chk.checked = todosVisiveis;
+  });
+
+  // Reseta indeterminate
+  document.querySelectorAll('#leg-tempo-all, #leg-comp-all').forEach(el => { el.indeterminate = false; });
+
   btnToggleTodosEl.textContent = todosVisiveis ? 'Desativar todos' : 'Ativar todos';
 }
 
 btnToggleTodosEl.addEventListener('click', toggleTodosAlgoritmos);
+
+
+
+/* =========================
+   EXPORTAR / COPIAR
+========================= */
+function exportarPNG(chartCanvasId, nomeArquivo) {
+  const chart = Chart.getChart(chartCanvasId);
+  if (!chart) return;
+  const dataUrl = gerarImagemAltaResolucao(chart);
+  const link = document.createElement('a');
+  link.download = `${nomeArquivo}.png`;
+  link.href = dataUrl;
+  link.click();
+}
+
+async function copiarParaClipboard(chartCanvasId) {
+  const chart = Chart.getChart(chartCanvasId);
+  if (!chart) return;
+  try {
+    const dataUrl = gerarImagemAltaResolucao(chart);
+    const blob = await (await fetch(dataUrl)).blob();
+    await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+  } catch (err) {
+    alert('Erro ao copiar imagem. Tente exportar como PNG.');
+  }
+}
+
+function gerarImagemAltaResolucao(chart) {
+  const canvas = chart.canvas;
+  const larguraOriginalCSS = canvas.style.width;
+  const alturaOriginalCSS = canvas.style.height;
+  const scale = 2;
+
+  // Obtém dimensões atuais renderizadas
+  const larguraAtual = canvas.offsetWidth;
+  const alturaAtual = canvas.offsetHeight;
+
+  // Aplica escala maior
+  canvas.style.width = (larguraAtual * scale) + 'px';
+  canvas.style.height = (alturaAtual * scale) + 'px';
+  chart.resize();
+
+  const dataUrl = chart.toBase64Image();
+
+  // Restaura tamanho original
+  canvas.style.width = larguraOriginalCSS;
+  canvas.style.height = alturaOriginalCSS;
+  chart.resize();
+
+  return dataUrl;
+}
 
 montarComparacaoGrandes();
 </script>
