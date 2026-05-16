@@ -1,0 +1,31 @@
+version: "3.9"
+
+services:
+  comparacao:
+    build: .
+    container_name: comparacao_algoritmos
+    restart: unless-stopped
+    env_file:
+      - .env.comparacao
+    environment:
+      - DJANGO_SETTINGS_MODULE=projeto.settings_prod
+      - DEBUG=False
+      - DB_DIR=/data
+    volumes:
+      # Banco SQLite persistente
+      - ./data:/data
+      # Staticfiles - mesmo path usado pelo nginx
+      - ./staticfiles:/app/staticfiles
+      # Media (se necessario)
+      - ./media:/app/media
+    mem_limit: 128m
+    networks:
+      - prod_net
+    # Porta exposta apenas para debug local; em producao o nginx faz o proxy
+    # ports:
+    #   - "8000:8000"
+
+networks:
+  prod_net:
+    external: true
+    name: prod_net

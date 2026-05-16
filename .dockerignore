@@ -1,0 +1,50 @@
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Django
+*.log
+local_settings.py
+media/
+staticfiles/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# macOS
+.DS_Store
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose*.yml
+
+# Testes e dados locais
+resultados/
+tools/
+*.md
+artigo.*
+
+# Banco local (será montado via volume)
+db.sqlite3
+*.sqlite3
+
+# Scripts de benchmark
+executar_todos_benchmarks.sh
+extrair_*.py
+analisar_*.py
