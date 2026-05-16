@@ -7,8 +7,8 @@
     <h1 class="h4 mb-1">Histórico de Execuções</h1>
   </div>
   <div class="d-flex gap-2">
-    <a href="/" class="btn btn-primary btn-sm">Nova execução</a>
-     <a href="/comparar/" class="btn btn-secondary btn-sm">Comparar algoritmos</a>
+    <a href="{% url 'benchmark:pagina_inicial' %}" class="btn btn-primary btn-sm">Nova execução</a>
+     <a href="{% url 'benchmark:comparar_algoritmos' %}" class="btn btn-secondary btn-sm">Comparar algoritmos</a>
      <button type="button" class="btn btn-success btn-sm" id="btn-exportar-csv">
        Exportar CSV selecionados
      </button>

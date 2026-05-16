@@ -13,9 +13,9 @@
     </h1>
     <div>
       <a class="btn btn-outline-secondary btn-sm" href="{% url 'relatorios:exportar_csv' execucao.id %}">Exportar CSV</a>
-    <a href="/" class="btn btn-primary btn-sm">Nova execução</a>
-    <a href="/execucoes/" class="btn btn-warning btn-sm">Ir para execuções</a>
-    <a href="/comparar/" class="btn btn-secondary btn-sm">Comparar algoritmos</a>
+    <a href="{% url 'benchmark:pagina_inicial' %}" class="btn btn-primary btn-sm">Nova execução</a>
+    <a href="{% url 'benchmark:listar_execucoes' %}" class="btn btn-warning btn-sm">Ir para execuções</a>
+    <a href="{% url 'benchmark:comparar_algoritmos' %}" class="btn btn-secondary btn-sm">Comparar algoritmos</a>
   </div>
 </div>
 
