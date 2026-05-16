@@ -276,6 +276,7 @@ function toggleDataset(chartId, datasetIndex, visible) {
   chart.setDatasetVisibility(datasetIndex, visible);
   chart.update();
   atualizarCheckAll(chartId);
+  atualizarTitulosEixos(chart);
 }
 
 function toggleColuna(chartId, tipo, checked) {
@@ -294,6 +295,9 @@ function toggleColuna(chartId, tipo, checked) {
     }
   }
   chart.update();
+
+  // Atualiza títulos dos eixos conforme visibilidade
+  atualizarTitulosEixos(chart);
 
   // Sincroniza checkboxes individuais do mesmo container
   const container = document.getElementById(chartId);
@@ -329,6 +333,29 @@ function atualizarCheckAll(chartId) {
   const compAll = container.querySelector(`.leg-comp-all-${chartId}`);
   if (tempoAll) { tempoAll.checked = todosTempoOn; tempoAll.indeterminate = !todosTempoOn && !todosTempoOff; }
   if (compAll) { compAll.checked = todosCompOn; compAll.indeterminate = !todosCompOn && !todosCompOff; }
+}
+
+/* =========================
+   TÍTULOS DINÂMICOS DOS EIXOS Y
+========================= */
+function atualizarTitulosEixos(chart) {
+  const N = chart.data.datasets.length;
+  let algumTempoVisivel = false, algumCompVisivel = false;
+  for (let i = 0; i < N; i++) {
+    if (chart.isDatasetVisible(i)) {
+      if (i % 2 === 0) algumTempoVisivel = true;
+      else algumCompVisivel = true;
+    }
+  }
+  const tituloEsq = (!algumTempoVisivel && algumCompVisivel)
+    ? 'Comparações - Escala Log'
+    : 'Tempo (ms)';
+  const tituloDir = (!algumCompVisivel && algumTempoVisivel)
+    ? 'Tempo (ms) - Escala Log'
+    : 'Comparações';
+  chart.options.scales.yTempo.title.text = tituloEsq;
+  chart.options.scales.yComparacoes.title.text = tituloDir;
+  chart.update();
 }
 
 /* =========================
