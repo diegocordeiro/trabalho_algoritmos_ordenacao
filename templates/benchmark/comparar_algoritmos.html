@@ -794,14 +794,22 @@ function gerarImagemAltaResolucao(chart) {
   // Aplica escala maior
   canvas.style.width = (larguraAtual * scale) + 'px';
   canvas.style.height = (alturaAtual * scale) + 'px';
+
+  // Ativa a legenda nativa temporariamente para exportação
+  const legendOriginal = chart.options.plugins.legend.display;
+  chart.options.plugins.legend.display = true;
+
   chart.resize();
+  chart.update('none');
 
   const dataUrl = chart.toBase64Image();
 
-  // Restaura tamanho original
+  // Restaura legenda e tamanho original
+  chart.options.plugins.legend.display = legendOriginal;
   canvas.style.width = larguraOriginalCSS;
   canvas.style.height = alturaOriginalCSS;
   chart.resize();
+  chart.update('none');
 
   return dataUrl;
 }
