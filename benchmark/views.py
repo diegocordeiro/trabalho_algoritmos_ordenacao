@@ -10,7 +10,7 @@ from django.db.models import Avg, FloatField
 from django.db.models.functions import Round, Cast
 
 from benchmark.forms import ConfiguracaoBenchmarkForm
-from benchmark.models import ExecucaoBenchmark, ResultadoExecucao
+from benchmark.models import BenchmarkConfig, ExecucaoBenchmark, ResultadoExecucao
 from benchmark.services import dados_grafico, iniciar_execucao_assincrona, medias_por_combinacao, _filtrar_outliers
 
 
@@ -33,7 +33,14 @@ def _calcular_ic95(valores):
 
 
 def pagina_inicial(request):
+    config = BenchmarkConfig.load()
+    readonly = config.modo_apenas_leitura
+
     if request.method == 'POST':
+        if readonly:
+            form = ConfiguracaoBenchmarkForm()
+            form.add_error(None, 'O sistema esta em modo apenas leitura. Nao e possivel iniciar novas execucoes.')
+            return render(request, 'benchmark/configuracao.html', {'form': form, 'readonly': readonly})
         form = ConfiguracaoBenchmarkForm(request.POST)
         if form.is_valid():
             vetor_str = form.cleaned_data['vetor_personalizado']
@@ -58,16 +65,21 @@ def pagina_inicial(request):
             return redirect('benchmark:acompanhar_execucao', execucao_id=execucao.id)
     else:
         form = ConfiguracaoBenchmarkForm()
-    return render(request, 'benchmark/configuracao.html', {'form': form})
+    return render(request, 'benchmark/configuracao.html', {'form': form, 'readonly': readonly})
 
 
 def listar_execucoes(request):
+    config = BenchmarkConfig.load()
+    readonly = config.modo_apenas_leitura
     execucoes = ExecucaoBenchmark.objects.all().order_by('-criado_em')
-    return render(request, 'benchmark/lista_execucoes.html', {'execucoes': execucoes})
+    return render(request, 'benchmark/lista_execucoes.html', {'execucoes': execucoes, 'readonly': readonly})
 
 
 @require_POST
 def excluir_execucao(request, execucao_id):
+    config = BenchmarkConfig.load()
+    if config.modo_apenas_leitura:
+        return redirect('benchmark:listar_execucoes')
     execucao = get_object_or_404(ExecucaoBenchmark, id=execucao_id)
     execucao.delete()
     return redirect('benchmark:listar_execucoes')
@@ -75,6 +87,9 @@ def excluir_execucao(request, execucao_id):
 
 @require_POST
 def excluir_multiplas_execucoes(request):
+    config = BenchmarkConfig.load()
+    if config.modo_apenas_leitura:
+        return redirect('benchmark:listar_execucoes')
     ids = request.POST.getlist('execucoes')
     if ids:
         ExecucaoBenchmark.objects.filter(id__in=ids).delete()

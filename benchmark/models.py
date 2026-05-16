@@ -1,6 +1,33 @@
 from django.db import models
 
 
+class BenchmarkConfig(models.Model):
+    """Configuracao singleton do benchmark. Apenas uma instancia deve existir."""
+    modo_apenas_leitura = models.BooleanField(
+        default=False,
+        verbose_name='Ativar modo apenas leitura',
+        help_text='Quando ativado, bloqueia o envio de novas execucoes via formulario de configuracao.'
+    )
+
+    class Meta:
+        verbose_name = 'Configuracao do Benchmark'
+        verbose_name_plural = 'Configuracao do Benchmark'
+
+    def save(self, *args, **kwargs):
+        # Garante que exista apenas uma instancia (singleton)
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def load(cls):
+        """Retorna a instancia unica de configuracao, criando-a se necessario."""
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+    def __str__(self):
+        return 'Configuracao do Benchmark'
+
+
 class ExecucaoBenchmark(models.Model):
     STATUS_CHOICES = [
         ('pendente', 'Pendente'),

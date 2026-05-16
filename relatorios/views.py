@@ -7,11 +7,12 @@ from django.views.decorators.http import require_POST
 from benchmark.models import ExecucaoBenchmark, ResultadoExecucao
 
 
-def _gerar_csv_resultados(resultados_qs, nome_arquivo, incluir_execucao=False):
+def _gerar_csv_resultados(resultados_qs, nome_arquivo, incluir_execucao=False, incluir_media=True):
     """
     Gera CSV com os dados detalhados por rodada (algoritmo, condicao, tamanho, rodada,
     tempo_ms, comparacoes, permitir_repetidos). Inclui uma linha de MEDIA ao final de
-    cada grupo (algoritmo + condicao + tamanho [+ execucao_id se incluir_execucao]).
+    cada grupo (algoritmo + condicao + tamanho [+ execucao_id se incluir_execucao])
+    quando incluir_media=True.
     """
     resultados = resultados_qs.order_by(
         'algoritmo', 'condicao', 'tamanho', 'rodada'
@@ -74,7 +75,7 @@ def _gerar_csv_resultados(resultados_qs, nome_arquivo, incluir_execucao=False):
             chave = (r.algoritmo, r.condicao, r.tamanho)
 
         # Se mudou o grupo, escreve a media do grupo anterior
-        if grupo_atual is not None and chave != grupo_atual:
+        if incluir_media and grupo_atual is not None and chave != grupo_atual:
             _escrever_media()
             tempos_grupo = []
             comps_grupo = []
@@ -99,7 +100,7 @@ def _gerar_csv_resultados(resultados_qs, nome_arquivo, incluir_execucao=False):
         writer.writerow(linha)
 
     # Escreve a media do ultimo grupo
-    if grupo_atual is not None and tempos_grupo:
+    if incluir_media and grupo_atual is not None and tempos_grupo:
         _escrever_media()
 
     return resposta
@@ -125,8 +126,8 @@ def exportar_csv(request, execucao_id):
 def exportar_csv_selecionadas(request):
     """
     Exporta multiplas execucoes no formato por rodada (algoritmo, condicao, tamanho,
-    rodada, tempo_ms, comparacoes, permitir_repetidos) com linha de MEDIA ao final
-    de cada grupo, incluindo coluna execucao_id.
+    rodada, tempo_ms, comparacoes, permitir_repetidos), incluindo coluna execucao_id.
+    Sem linha de MEDIA ao final de cada grupo.
     """
     ids = request.POST.getlist('execucoes')
 
@@ -138,5 +139,6 @@ def exportar_csv_selecionadas(request):
     return _gerar_csv_resultados(
         resultados,
         'resultados_estatisticos_selecionados.csv',
-        incluir_execucao=True
+        incluir_execucao=True,
+        incluir_media=False
     )

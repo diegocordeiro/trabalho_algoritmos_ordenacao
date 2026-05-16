@@ -12,6 +12,12 @@
   </div>
 </div>
 
+{% if readonly %}
+<div class="alert alert-warning mb-4">
+  <strong>⚠ Modo apenas leitura ativado.</strong> O sistema está em modo apenas leitura. Não é possível iniciar novas execuções.
+</div>
+{% endif %}
+
 <div class="card panel-card">
   <div class="card-body p-4">
     <form method="post">
@@ -19,11 +25,11 @@
       <div class="row g-3 mb-3">
         <div class="col-lg-8">
           <label class="form-label fw-semibold">Nome da execução</label>
-          <input type="text" name="nome" value="{{ form.nome.value|default:'' }}" class="form-control form-control-lg" placeholder="Ex.: Quicksort - Tamanho X">
+          <input type="text" name="nome" value="{{ form.nome.value|default:'' }}" class="form-control form-control-lg" placeholder="Ex.: Quicksort - Tamanho X"{% if readonly %} disabled{% endif %}>
         </div>
         <div class="col-lg-4">
           <label class="form-label fw-semibold">Repetições (mín. 3)</label>
-          <input type="number" min="3" name="repeticoes" value="{{ form.repeticoes.value|default:'3' }}" class="form-control form-control-lg">
+          <input type="number" min="3" name="repeticoes" value="{{ form.repeticoes.value|default:'3' }}" class="form-control form-control-lg"{% if readonly %} disabled{% endif %}>
         </div>
       </div>
 
@@ -31,35 +37,45 @@
         <div class="col-lg-4">
           <div class="p-3 border rounded-3 bg-white h-100">
             <div class="section-title">Algoritmo</div>
-            {{ form.algoritmo }}
+            <select name="algoritmo" class="form-select form-select-lg"{% if readonly %} disabled{% endif %}>
+              {% for value, label in form.algoritmo.field.choices %}
+              <option value="{{ value }}"{% if form.algoritmo.value == value %} selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
           </div>
         </div>
         <div class="col-lg-4">
           <div class="p-3 border rounded-3 bg-white h-100">
             <div class="section-title">Condição</div>
-            {{ form.condicoes }}
+            <div{% if readonly %} style="pointer-events:none; opacity:0.7;"{% endif %}>
+              {{ form.condicoes }}
+            </div>
           </div>
         </div>
         <div class="col-lg-4">
           <div class="p-3 border rounded-3 bg-white h-100">
             <div class="section-title">Tamanho</div>
-            {{ form.tamanho }}
+            <select name="tamanho" class="form-select form-select-lg"{% if readonly %} disabled{% endif %}>
+              {% for value, label in form.tamanho.field.choices %}
+              <option value="{{ value }}"{% if form.tamanho.value == value %} selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
             <div id="wrapper-tamanho-personalizado" class="mt-2" style="display:none;">
-              {{ form.tamanho_personalizado }}
+              <input type="number" name="tamanho_personalizado" value="{{ form.tamanho_personalizado.value|default:'' }}" class="form-control form-control-lg" placeholder="Digite o tamanho desejado" min="1"{% if readonly %} disabled{% endif %}>
             </div>
           </div>
         </div>
       </div>
 
       <div class="mt-4 form-check">
-        {{ form.permitir_repetidos }}
-        <label class="form-check-label fw-semibold" for="{{ form.permitir_repetidos.id_for_label }}">Permitir números repetidos nos vetores gerados automaticamente</label>
+        <input type="checkbox" name="permitir_repetidos" id="id_permitir_repetidos" class="form-check-input"{% if form.permitir_repetidos.value %} checked{% endif %}{% if readonly %} disabled{% endif %}>
+        <label class="form-check-label fw-semibold" for="id_permitir_repetidos">Permitir números repetidos nos vetores gerados automaticamente</label>
         <div class="form-text">Quando marcado, os vetores poderão conter elementos duplicados. Default: vetores sem repetição.</div>
       </div>
 
       <div class="mt-4">
         <label class="form-label fw-semibold">Vetor personalizado (opcional)</label>
-        {{ form.vetor_personalizado }}
+        <textarea name="vetor_personalizado" rows="3" class="form-control" placeholder="Opcional: ex: 9,2,7,4,1"{% if readonly %} disabled{% endif %}>{{ form.vetor_personalizado.value|default:'' }}</textarea>
         <div class="form-text">Se preenchido, este vetor será usado no lugar da geração automática.</div>
       </div>
 
@@ -69,6 +85,7 @@
       </div>
       {% endif %}
 
+      {% if not readonly %}
       <script>
         (function() {
           var selectTamanho = document.querySelector('[name="tamanho"]');
@@ -120,9 +137,10 @@
           }
         })();
       </script>
+      {% endif %}
 
       <div class="d-flex gap-2 mt-4">
-        <button type="submit" class="btn btn-primary btn-lg">Iniciar execução</button>
+        <button type="submit" class="btn btn-primary btn-lg"{% if readonly %} disabled{% endif %}>Iniciar execução</button>
         <a href="{% url 'benchmark:listar_execucoes' %}" class="btn btn-warning btn-lg">Ir para execuções</a>
         <a href="{% url 'benchmark:comparar_algoritmos' %}" class="btn btn-secondary btn-lg">Comparar algoritmos</a>
       </div>
